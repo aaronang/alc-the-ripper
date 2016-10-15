@@ -3,14 +3,14 @@ Alc the Ripper (Alc for short) is a *state-of-the-art* cloud-based password crac
 The user submits a salt, a PBKDF2 digest, and the length of the password, then Alc will use brute force to find the password.
 
 # Design Requirements
-Automation - Alc should not require any human intervention when running. The user simply submits a request and Alc will do its job and then report the finding.
-Elasticity - Alc should handle variable user demands and offer the same level of service (in terms of hashes per second) to all the users.
-Load Balancing - The jobs should be evenly spread out across all the slaves to achieve maximum performance.
-Reliability - Jobs should checkpointed and restarted from the checkpoint when failures occur.
-Monitoring - Maintain metrics about the whole system to monitor job status, resource usage and so on.
-Scheduling - TODO
-Multi-tenancy - TODO
-Security - TODO
+* Automation - Alc should not require any human intervention when running. The user simply submits a request and Alc will do its job and then report the finding.
+* Elasticity - Alc should handle variable user demands and offer the same level of service (in terms of hashes per second) to all the users.
+* Load Balancing - The jobs should be evenly spread out across all the slaves to achieve maximum performance.
+* Reliability - Jobs should checkpointed and restarted from the checkpoint when failures occur.
+* Monitoring - Maintain metrics about the whole system to monitor job status, resource usage and so on.
+* Scheduling - TODO
+* Multi-tenancy - TODO
+* Security - TODO
 
 # Design Overview
 Alc is designed to run on IaaS providers such as AWS.
