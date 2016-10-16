@@ -24,6 +24,7 @@ For the PID controller, we define the error as `Ra - Rr`, where `Ra` is the curr
 `Rr` depends on the number of submitted tasks and `Ra` is total number of instances that Alc provisioned multiplied by the DOP of every instance.
 If the number of submitted tasks exceeds the maximum possible resource, e.g. 20 instances each with DOP of 2,
 then the tasks need to be queued and the `Rr` is capped at 20 * 2.
+In other words, queues should be not affect `Rr`, but they should never build up if we have enough resources.
 The queuing happens on the master.
 Only the proportional and the derivative terms are used in our controller.
 The derivative term is to introduce damping, so that we don't spontaneous reserve and release instances.
