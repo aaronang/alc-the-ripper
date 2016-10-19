@@ -27,12 +27,12 @@ func TestCreateAndTerminateSlave(t *testing.T) {
 
 	svc := ec2.New(sess)
 
-	instance, err := CreateSlave(svc)
+	instances, err := CreateSlaves(svc, 3)
 	if err != nil {
 		t.Error("Could not create instance", err)
 	}
 
-	if _, err = TerminateSlave(svc, instance); err != nil {
+	if _, err = TerminateSlaves(svc, instances); err != nil {
 		t.Error("Could not terminate instance", err)
 	}
 }
