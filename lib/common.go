@@ -26,15 +26,10 @@ const (
 // the slave knows from which string permutation to start and at which string
 // permutation to stop.
 type Task struct {
-	ID        int
-	JobID     int
-	Algorithm string
-	Salt      string
-	Digest    string
-	CharSet   string
-	Length    int
-	Start     string
-	End       string
+	Job
+	ID      int
+	Start   []byte
+	TaskLen int
 }
 
 // ToJSON serializes a Task to JSON.
