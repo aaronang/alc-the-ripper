@@ -36,3 +36,34 @@ type Task struct {
 func (t *Task) ToJson() ([]byte, error) {
 	return json.Marshal(t)
 }
+
+type Algorithm int
+
+const (
+	PBKDF2 Algorithm = iota
+	BCRYPT
+	SCRYPT
+	ARGON2
+)
+
+type CharSet int
+
+const (
+	Numerical CharSet = iota
+	AlphaLower
+	AlphaMixed
+	AlphaNumLower
+	AlphaNumMixed
+)
+
+// Job is the customer facing resource,
+// we use naming conventions of https://godoc.org/golang.org/x/crypto/pbkdf2,
+// and assuming the hash function is sha256
+type Job struct {
+	Salt      []byte
+	Digest    []byte
+	KeyLen    int
+	Iter      int
+	CharSet   CharSet
+	Algorithm Algorithm
+}
