@@ -2,9 +2,10 @@ package lib
 
 import "encoding/json"
 
+// Global configuration
 const (
-	Protocol = "http://"
 	Port     = ":8080"
+	Protocol = "http://"
 
 	BodyType = "application/json"
 
@@ -21,9 +22,12 @@ const (
 	AWSRegion = "eu-west-1"
 )
 
+// A Task defines the computational domain for string permutations. This way,
+// the slave knows from which string permutation to start and at which string
+// permutation to stop.
 type Task struct {
-	Id        int
-	JobId     int
+	ID        int
+	JobID     int
 	Algorithm string
 	Salt      string
 	Digest    string
@@ -33,6 +37,7 @@ type Task struct {
 	End       string
 }
 
-func (t *Task) ToJson() ([]byte, error) {
+// ToJSON serializes a Task to JSON.
+func (t *Task) ToJSON() ([]byte, error) {
 	return json.Marshal(t)
 }

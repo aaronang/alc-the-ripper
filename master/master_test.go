@@ -31,8 +31,8 @@ func TestCreateAndTerminateSlave(t *testing.T) {
 
 func TestSendTask(t *testing.T) {
 	ta := &lib.Task{
-		Id:        1,
-		JobId:     1,
+		ID:        1,
+		JobID:     1,
 		Algorithm: "PBKDF2",
 		Salt:      "salty",
 		Digest:    "$pbkdf2-sha256$6400$0ZrzXitFSGltTQnBWOsdAw$Y11AchqV4b0sUisdZd0Xr97KWoymNE0LNNrnEgY4H9M",
