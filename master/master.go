@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"net/http"
 
-	"github.com/aaronang/cong-the-ripper/task"
+	"github.com/aaronang/cong-the-ripper/lib"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/spf13/viper"
@@ -37,11 +37,13 @@ func TerminateSlaves(svc *ec2.EC2, instances []*ec2.Instance) (*ec2.TerminateIns
 	return svc.TerminateInstances(params)
 }
 
-func SendTask(t *task.Task, i *ec2.Instance) (resp *http.Response, err error) {
-	url := "http://" + *i.PublicIpAddress + ":8080/tasks/create"
-	bodyType := "application/json"
-	body, _ := t.ToJson()
-	return http.Post(url, bodyType, bytes.NewBuffer(body))
+func SendTask(t *lib.Task, i *ec2.Instance) (*http.Response, error) {
+	url := lib.Protocol + *i.PublicIpAddress + lib.Port + lib.CreateTaskRoute
+	body, err := t.ToJson()
+	if err != nil {
+		panic(err)
+	}
+	return http.Post(url, lib.BodyType, bytes.NewBuffer(body))
 }
 
 func instanceIds(instances []*ec2.Instance) []*string {

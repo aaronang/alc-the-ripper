@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/aaronang/cong-the-ripper/lib"
 )
 
 type Job struct {
@@ -16,11 +18,13 @@ type Job struct {
 func jobsHandler(w http.ResponseWriter, r *http.Request) {
 	var j Job
 	decoder := json.NewDecoder(r.Body)
-	decoder.Decode(&j)
+	if err := decoder.Decode(&j); err != nil {
+		return
+	}
 	fmt.Println(j)
 }
 
 func main() {
 	http.HandleFunc("/", jobsHandler)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(lib.Port, nil)
 }

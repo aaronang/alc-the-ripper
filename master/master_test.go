@@ -3,7 +3,7 @@ package master
 import (
 	"testing"
 
-	"github.com/aaronang/cong-the-ripper/task"
+	"github.com/aaronang/cong-the-ripper/lib"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -39,7 +39,7 @@ func TestCreateAndTerminateSlave(t *testing.T) {
 }
 
 func TestSendTask(t *testing.T) {
-	ta := &task.Task{
+	ta := &lib.Task{
 		Id:        1,
 		JobId:     1,
 		Algorithm: "PBKDF2",

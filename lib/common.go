@@ -1,6 +1,15 @@
-package task
+package lib
 
 import "encoding/json"
+
+const (
+	Protocol = "http://"
+	Port     = ":8080"
+
+	BodyType = "application/json"
+
+	CreateTaskRoute = "/tasks/create"
+)
 
 type Task struct {
 	Id        int
