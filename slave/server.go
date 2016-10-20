@@ -1,25 +1,24 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
+
+	"github.com/aaronang/cong-the-ripper/lib"
 )
 
-type Subtask struct {
-	Algorithm string
-	Salt      string
-	Digest    string
-	CharSet   string
-	Length    int
-	Start     string
-	End       string
-	Id        int
-}
-
-func subtaskHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO
+func taskHandler(w http.ResponseWriter, r *http.Request) {
+	var t lib.Task
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&t); err != nil {
+		http.Error(w, "Status: Bad Request", http.StatusBadRequest)
+		return
+	}
+	fmt.Println(t)
 }
 
 func main() {
-	http.HandleFunc("/", subtaskHandler)
-	http.ListenAndServe(":8080", nil)
+	http.HandleFunc(lib.CreateTaskPath, taskHandler)
+	http.ListenAndServe(lib.Port, nil)
 }
