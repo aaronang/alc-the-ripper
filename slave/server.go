@@ -12,6 +12,7 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 	var t lib.Task
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&t); err != nil {
+		http.Error(w, "Status: Bad Request", http.StatusBadRequest)
 		return
 	}
 	fmt.Println(t)

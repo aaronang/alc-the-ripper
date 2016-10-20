@@ -34,5 +34,5 @@ type Task struct {
 }
 
 func (t *Task) ToJson() ([]byte, error) {
-	return json.Marshal(&t)
+	return json.Marshal(t)
 }

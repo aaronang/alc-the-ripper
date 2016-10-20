@@ -19,6 +19,7 @@ func jobsHandler(w http.ResponseWriter, r *http.Request) {
 	var j Job
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&j); err != nil {
+		http.Error(w, "Status: Bad Request", http.StatusBadRequest)
 		return
 	}
 	fmt.Println(j)
