@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
+// CreateSlaves creates a new slave instance.
 func CreateSlaves(svc *ec2.EC2, count int64) ([]*ec2.Instance, error) {
 	params := &ec2.RunInstancesInput{
 		ImageId:      aws.String(lib.SlaveImage),
@@ -23,6 +24,7 @@ func CreateSlaves(svc *ec2.EC2, count int64) ([]*ec2.Instance, error) {
 	return resp.Instances, err
 }
 
+// TerminateSlaves terminates a slave instance.
 func TerminateSlaves(svc *ec2.EC2, instances []*ec2.Instance) (*ec2.TerminateInstancesOutput, error) {
 	params := &ec2.TerminateInstancesInput{
 		InstanceIds: instanceIds(instances),
@@ -30,9 +32,10 @@ func TerminateSlaves(svc *ec2.EC2, instances []*ec2.Instance) (*ec2.TerminateIns
 	return svc.TerminateInstances(params)
 }
 
+// SendTask sends a task to a slave instance.
 func SendTask(t *lib.Task, i *ec2.Instance) (*http.Response, error) {
 	url := lib.Protocol + *i.PublicIpAddress + lib.Port + lib.CreateTaskPath
-	body, err := t.ToJson()
+	body, err := t.ToJSON()
 	if err != nil {
 		panic(err)
 	}

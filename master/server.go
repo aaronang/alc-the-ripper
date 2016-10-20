@@ -8,6 +8,8 @@ import (
 	"github.com/aaronang/cong-the-ripper/lib"
 )
 
+// Job represents a user request, containing required information to crack a
+// password.
 type Job struct {
 	Salt    string
 	Digest  string
