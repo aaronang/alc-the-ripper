@@ -8,7 +8,7 @@ const (
 
 	BodyType = "application/json"
 
-	CreateTaskRoute = "/tasks/create"
+	CreateTaskPath = "/tasks/create"
 )
 
 type Task struct {

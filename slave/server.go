@@ -18,6 +18,6 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc(lib.CreateTaskRoute, taskHandler)
+	http.HandleFunc(lib.CreateTaskPath, taskHandler)
 	http.ListenAndServe(lib.Port, nil)
 }

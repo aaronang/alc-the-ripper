@@ -38,7 +38,7 @@ func TerminateSlaves(svc *ec2.EC2, instances []*ec2.Instance) (*ec2.TerminateIns
 }
 
 func SendTask(t *lib.Task, i *ec2.Instance) (*http.Response, error) {
-	url := lib.Protocol + *i.PublicIpAddress + lib.Port + lib.CreateTaskRoute
+	url := lib.Protocol + *i.PublicIpAddress + lib.Port + lib.CreateTaskPath
 	body, err := t.ToJson()
 	if err != nil {
 		panic(err)
