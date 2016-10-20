@@ -7,23 +7,16 @@ import (
 	"github.com/aaronang/cong-the-ripper/lib"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/spf13/viper"
 )
-
-func init() {
-	viper.SetConfigName("config")
-	viper.AddConfigPath(".")
-	viper.ReadInConfig()
-}
 
 func CreateSlaves(svc *ec2.EC2, count int64) ([]*ec2.Instance, error) {
 	params := &ec2.RunInstancesInput{
-		ImageId:      aws.String(viper.GetString("slave.image")),
-		InstanceType: aws.String(viper.GetString("slave.type")),
+		ImageId:      aws.String(lib.SlaveImage),
+		InstanceType: aws.String(lib.SlaveType),
 		MinCount:     aws.Int64(count),
 		MaxCount:     aws.Int64(count),
 		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-			Arn: aws.String(viper.GetString("slave.arn")),
+			Arn: aws.String(lib.SlaveARN),
 		},
 	}
 	resp, err := svc.RunInstances(params)
