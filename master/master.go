@@ -1,6 +1,10 @@
 package master
 
 import (
+	"bytes"
+	"net/http"
+
+	"github.com/aaronang/cong-the-ripper/task"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/spf13/viper"
@@ -31,6 +35,13 @@ func TerminateSlaves(svc *ec2.EC2, instances []*ec2.Instance) (*ec2.TerminateIns
 		InstanceIds: instanceIds(instances),
 	}
 	return svc.TerminateInstances(params)
+}
+
+func SendTask(t *task.Task, i *ec2.Instance) (resp *http.Response, err error) {
+	url := "http://" + *i.PublicIpAddress + ":8080/tasks/create"
+	bodyType := "application/json"
+	body, _ := t.ToJson()
+	return http.Post(url, bodyType, bytes.NewBuffer(body))
 }
 
 func instanceIds(instances []*ec2.Instance) []*string {
