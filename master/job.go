@@ -8,20 +8,6 @@ import (
 
 // NOTE: consider using math/big for some of the operations in this package
 
-var charSetSlice [][]byte
-
-func init() {
-	const nums string = "0123456789"
-	const alphaLower string = "abcdefghijklmnopqrstuvwxyz"
-	const alphaMixed string = alphaLower + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	const alphaNumLower string = nums + alphaLower
-	charSetSlice = [][]byte{
-		[]byte(nums),
-		[]byte(alphaLower),
-		[]byte(alphaMixed),
-		[]byte(alphaNumLower)}
-}
-
 type job struct {
 	lib.Job
 	id    int
@@ -69,7 +55,7 @@ func chunkCharSet(charset lib.CharSet, l, n int) ([][]byte, []int) {
 
 // nthCandidateFrom computes the n th candidate password from inp
 func nthCandidateFrom(charset lib.CharSet, n int, inp []byte) ([]byte, int) {
-	base := len(charSetSlice[charset])
+	base := len(lib.CharSetSlice[charset])
 	res, carry := addToIntSlice(base, n, bytesToIntSlice(charset, inp))
 	return intSliceToBytes(charset, res), carry
 }
@@ -80,7 +66,7 @@ func nthCandidateFrom(charset lib.CharSet, n int, inp []byte) ([]byte, int) {
 func countUntilFinal(charset lib.CharSet, cand []byte) int {
 	f := bytesToIntSlice(charset, finalCandidate(charset, len(cand)))
 	combi := bytesToIntSlice(charset, cand)
-	base := len(charSetSlice[charset])
+	base := len(lib.CharSetSlice[charset])
 	i := 0
 	for !testEq(f, combi) {
 		combi, _ = addToIntSlice(base, 1, combi)
@@ -94,11 +80,11 @@ func initialCandidate(charset lib.CharSet, l int) []byte {
 }
 
 func finalCandidate(charset lib.CharSet, l int) []byte {
-	return replicateAt(charset, l, len(charSetSlice[charset])-1)
+	return replicateAt(charset, l, len(lib.CharSetSlice[charset])-1)
 }
 
 func replicateAt(charset lib.CharSet, l int, idx int) []byte {
-	v := charSetSlice[charset][idx]
+	v := lib.CharSetSlice[charset][idx]
 	res := make([]byte, l)
 	for i := range res {
 		res[i] = v
@@ -110,7 +96,7 @@ func bytesToIntSlice(charset lib.CharSet, inp []byte) []int {
 	res := make([]int, len(inp))
 	for i, b := range inp {
 		// probably not efficient, but the character sets are small so it's negligible
-		x := bytes.IndexByte(charSetSlice[charset], b)
+		x := bytes.IndexByte(lib.CharSetSlice[charset], b)
 		if x < 0 {
 			panic("Invalid characters!")
 		}
@@ -137,7 +123,7 @@ func addToIntSlice(base, v int, inp []int) ([]int, int) {
 func intSliceToBytes(charset lib.CharSet, inp []int) []byte {
 	res := make([]byte, len(inp))
 	for i, v := range inp {
-		res[i] = charSetSlice[charset][v]
+		res[i] = lib.CharSetSlice[charset][v]
 	}
 	return res
 }

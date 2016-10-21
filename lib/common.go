@@ -67,3 +67,20 @@ type Job struct {
 	CharSet   CharSet
 	Algorithm Algorithm
 }
+
+// CharSetSlice contains the set of all candidate characters for every alphabet
+var CharSetSlice [][]byte
+
+func init() {
+	const nums string = "0123456789"
+	const alphaLower string = "abcdefghijklmnopqrstuvwxyz"
+	const alphaMixed string = alphaLower + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	const alphaNumLower string = nums + alphaLower
+	const alphaNumMixed string = nums + alphaMixed
+	CharSetSlice = [][]byte{
+		[]byte(nums),
+		[]byte(alphaLower),
+		[]byte(alphaMixed),
+		[]byte(alphaNumLower),
+		[]byte(alphaNumMixed)}
+}
