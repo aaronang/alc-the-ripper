@@ -1,8 +1,6 @@
 package master
 
 import (
-	"bytes"
-
 	"github.com/aaronang/cong-the-ripper/lib"
 )
 
@@ -56,20 +54,20 @@ func chunkCharSet(charset lib.CharSet, l, n int) ([][]byte, []int) {
 // nthCandidateFrom computes the n th candidate password from inp
 func nthCandidateFrom(charset lib.CharSet, n int, inp []byte) ([]byte, int) {
 	base := len(lib.CharSetSlice[charset])
-	res, carry := addToIntSlice(base, n, bytesToIntSlice(charset, inp))
-	return intSliceToBytes(charset, res), carry
+	res, carry := lib.AddToIntSlice(base, n, lib.BytesToIntSlice(charset, inp))
+	return lib.IntSliceToBytes(charset, res), carry
 }
 
 // countUntilFinal counts the number of iterations until the final candidate starting from cand
 // not so efficient
 // we can use binary search to improve the performance
 func countUntilFinal(charset lib.CharSet, cand []byte) int {
-	f := bytesToIntSlice(charset, finalCandidate(charset, len(cand)))
-	combi := bytesToIntSlice(charset, cand)
+	f := lib.BytesToIntSlice(charset, finalCandidate(charset, len(cand)))
+	combi := lib.BytesToIntSlice(charset, cand)
 	base := len(lib.CharSetSlice[charset])
 	i := 0
-	for !testEq(f, combi) {
-		combi, _ = addToIntSlice(base, 1, combi)
+	for !lib.TestEqInts(f, combi) {
+		combi, _ = lib.AddToIntSlice(base, 1, combi)
 		i++
 	}
 	return i
@@ -90,63 +88,4 @@ func replicateAt(charset lib.CharSet, l int, idx int) []byte {
 		res[i] = v
 	}
 	return res
-}
-
-func bytesToIntSlice(charset lib.CharSet, inp []byte) []int {
-	res := make([]int, len(inp))
-	for i, b := range inp {
-		// probably not efficient, but the character sets are small so it's negligible
-		x := bytes.IndexByte(lib.CharSetSlice[charset], b)
-		if x < 0 {
-			panic("Invalid characters!")
-		}
-		res[i] = x
-	}
-	return res
-}
-
-func addToIntSlice(base, v int, inp []int) ([]int, int) {
-	for i := range inp {
-		r := v % base
-		tmp := inp[i] + r
-		if tmp < base {
-			inp[i] = tmp
-			v = v / base
-		} else {
-			inp[i] = tmp % base
-			v = v/base + 1
-		}
-	}
-	return inp, v // v is the carry
-}
-
-func intSliceToBytes(charset lib.CharSet, inp []int) []byte {
-	res := make([]byte, len(inp))
-	for i, v := range inp {
-		res[i] = lib.CharSetSlice[charset][v]
-	}
-	return res
-}
-
-func testEq(a, b []int) bool {
-
-	if a == nil && b == nil {
-		return true
-	}
-
-	if a == nil || b == nil {
-		return false
-	}
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
 }

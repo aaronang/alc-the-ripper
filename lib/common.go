@@ -1,6 +1,9 @@
 package lib
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+)
 
 // Global configuration
 const (
@@ -83,4 +86,63 @@ func init() {
 		[]byte(alphaMixed),
 		[]byte(alphaNumLower),
 		[]byte(alphaNumMixed)}
+}
+
+func BytesToIntSlice(charset CharSet, inp []byte) []int {
+	res := make([]int, len(inp))
+	for i, b := range inp {
+		// probably not efficient, but the character sets are small so it's negligible
+		x := bytes.IndexByte(CharSetSlice[charset], b)
+		if x < 0 {
+			panic("Invalid characters!")
+		}
+		res[i] = x
+	}
+	return res
+}
+
+func AddToIntSlice(base, v int, inp []int) ([]int, int) {
+	for i := range inp {
+		r := v % base
+		tmp := inp[i] + r
+		if tmp < base {
+			inp[i] = tmp
+			v = v / base
+		} else {
+			inp[i] = tmp % base
+			v = v/base + 1
+		}
+	}
+	return inp, v // v is the carry
+}
+
+func IntSliceToBytes(charset CharSet, inp []int) []byte {
+	res := make([]byte, len(inp))
+	for i, v := range inp {
+		res[i] = CharSetSlice[charset][v]
+	}
+	return res
+}
+
+func TestEqInts(a, b []int) bool {
+
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil {
+		return false
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
 }
