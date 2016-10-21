@@ -27,6 +27,7 @@ const (
 // permutation to stop.
 type Task struct {
 	Job
+	JobID   int
 	ID      int
 	Start   []byte
 	TaskLen int
@@ -56,9 +57,8 @@ const (
 	AlphaNumMixed
 )
 
-// Job is the customer facing resource,
-// we use naming conventions of https://godoc.org/golang.org/x/crypto/pbkdf2,
-// and assuming the hash function is sha256
+// Job is the customer facing resource representing a single password cracking job
+// we focus on PBKDF2 first with SHA256 first
 type Job struct {
 	Salt      []byte
 	Digest    []byte

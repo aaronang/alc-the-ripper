@@ -11,10 +11,10 @@ import (
 var charSetSlice [][]byte
 
 func init() {
-	nums := "0123456789"
-	alphaLower := "abcdefghijklmnopqrstuvwxyz"
-	alphaMixed := alphaLower + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	alphaNumLower := nums + alphaLower
+	const nums string = "0123456789"
+	const alphaLower string = "abcdefghijklmnopqrstuvwxyz"
+	const alphaMixed string = alphaLower + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	const alphaNumLower string = nums + alphaLower
 	charSetSlice = [][]byte{
 		[]byte(nums),
 		[]byte(alphaLower),
@@ -25,16 +25,18 @@ func init() {
 type job struct {
 	lib.Job
 	id    int
-	Tasks []lib.Task
+	tasks []lib.Task
 }
 
-// SplitJob attempts to split a cracking job into equal sized tasks
-func SplitJob(job *job, size int) []lib.Task {
+// SplitJob attempts to split a cracking job into equal sized tasks regardless of the job
+// the taskSize represents the number of brute force iterations
+func SplitJob(job *job, taskSize int) []lib.Task {
 	var tasks []lib.Task
-	cands, lens := chunkCharSet(job.CharSet, job.KeyLen, size)
+	cands, lens := chunkCharSet(job.CharSet, job.KeyLen, taskSize)
 	for i := range cands {
 		tasks = append(tasks, lib.Task{
 			Job:     job.Job,
+			JobID:   job.id,
 			ID:      i,
 			Start:   cands[i],
 			TaskLen: lens[i]})
