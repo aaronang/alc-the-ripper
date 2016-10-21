@@ -70,8 +70,8 @@ func TestIntSliceToBytes(t *testing.T) {
 	}
 }
 
-func TestNextCombination(t *testing.T) {
-	res1, carry1 := nextCombination(lib.AlphaLower, 1, []byte("aaaa"))
+func TestNextCandidate(t *testing.T) {
+	res1, carry1 := nthCandidateFrom(lib.AlphaLower, 1, []byte("aaaa"))
 	if bytes.Compare(res1, []byte("baaa")) != 0 {
 		t.Error("alpha next combination failed (1)")
 	}
@@ -80,7 +80,7 @@ func TestNextCombination(t *testing.T) {
 	}
 
 	// the result will cycle back and result in a carry
-	res2, carry2 := nextCombination(lib.AlphaLower, 2, []byte("yzzz"))
+	res2, carry2 := nthCandidateFrom(lib.AlphaLower, 2, []byte("yzzz"))
 	if bytes.Compare(res2, []byte("aaaa")) != 0 {
 		t.Error("alpha next combination failed (2)")
 	}
@@ -88,7 +88,7 @@ func TestNextCombination(t *testing.T) {
 		t.Error("alpha next combination carry not one (2)")
 	}
 
-	res3, carry3 := nextCombination(lib.AlphaLower, 1, []byte("zaaa"))
+	res3, carry3 := nthCandidateFrom(lib.AlphaLower, 1, []byte("zaaa"))
 	if bytes.Compare(res3, []byte("abaa")) != 0 {
 		t.Error("alpha next combination failed (3)")
 	}
@@ -96,7 +96,7 @@ func TestNextCombination(t *testing.T) {
 		t.Error("alpha next combination carry not zero (3)")
 	}
 
-	res4, carry4 := nextCombination(lib.AlphaLower, 26*26, []byte("aaaa"))
+	res4, carry4 := nthCandidateFrom(lib.AlphaLower, 26*26, []byte("aaaa"))
 	if bytes.Compare(res4, []byte("aaba")) != 0 {
 		t.Error("alpha next combination failed (4)")
 	}
@@ -105,12 +105,12 @@ func TestNextCombination(t *testing.T) {
 	}
 }
 
-func TestInitialCombination(t *testing.T) {
-	if bytes.Compare(initialCombination(lib.AlphaLower, 5), []byte("aaaaa")) != 0 {
+func TestInitialCandidate(t *testing.T) {
+	if bytes.Compare(initialCandidate(lib.AlphaLower, 5), []byte("aaaaa")) != 0 {
 		t.Error("failed to generate initial alpha")
 	}
 
-	if bytes.Compare(initialCombination(lib.AlphaNumLower, 4), []byte("0000")) != 0 {
+	if bytes.Compare(initialCandidate(lib.AlphaNumLower, 4), []byte("0000")) != 0 {
 		t.Error("failed to generate initial alpha")
 	}
 }
@@ -139,8 +139,8 @@ func TestChunkCharSet(t *testing.T) {
 func testLastIsFinal(charset lib.CharSet, combs [][]byte, lens []int) bool {
 	l := lens[len(lens)-1]
 	b := combs[len(combs)-1]
-	final := finalCombination(charset, len(b))
-	final2, carry := nextCombination(charset, l, b)
+	final := finalCandidate(charset, len(b))
+	final2, carry := nthCandidateFrom(charset, l, b)
 	if carry != 0 || bytes.Compare(final2, final) != 0 {
 		return false
 	}
