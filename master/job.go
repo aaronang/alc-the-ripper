@@ -9,11 +9,15 @@ import (
 var charSetSlice [][]byte
 
 func init() {
-	nums := []byte("0123456789")
-	alphaLower := []byte("abcdefghijklmnopqrstuvwxyz")
-	alphaMixed := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	alphaNumLower := []byte("0123456789abcdefghijklmnopqrstuvwxyz")
-	charSetSlice = [][]byte{nums, alphaLower, alphaMixed, alphaNumLower}
+	nums := "0123456789"
+	alphaLower := "abcdefghijklmnopqrstuvwxyz"
+	alphaMixed := alphaLower + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	alphaNumLower := nums + alphaLower
+	charSetSlice = [][]byte{
+		[]byte(nums),
+		[]byte(alphaLower),
+		[]byte(alphaMixed),
+		[]byte(alphaNumLower)}
 }
 
 type job struct {
@@ -22,32 +26,73 @@ type job struct {
 	// Tasks []lib.Task
 }
 
-// func SplitJob(job *job, size int) []lib.Task {
-// 	var tasks []lib.Task
-// 	comb := initialCombination(job.CharSet, job.KeyLen)
-// 	i := 0
-// 	for {
-// 		newComb, rem := nextCombination(job.CharSet, size, comb)
-// 		if rem != 0 {
-// 			return
-// 		}
-// 		newTask := lib.Task{job.Job, i, newComb, size}
-// 		tasks = append(tasks, newTask)
-// 		i++
-// 	}
-// 	return tasks
-// }
+// SplitJob attempts to split a cracking job into equal sized tasks
+func SplitJob(job *job, size int) []lib.Task {
+	var tasks []lib.Task
+	combs, lens := chunkCharSet(job.CharSet, job.KeyLen, size)
+	for i := range combs {
+		tasks = append(tasks, lib.Task{
+			Job:     job.Job,
+			ID:      i,
+			Start:   combs[i],
+			TaskLen: lens[i]})
+	}
+	return tasks
+}
+
+func chunkCharSet(charset lib.CharSet, l, n int) ([][]byte, []int) {
+	comb := initialCombination(charset, l)
+	var combs [][]byte
+	var ints []int
+	for {
+		newComb, carry := nextCombination(charset, n, comb)
+		if carry == 0 {
+			ints = append(ints, n)
+			combs = append(combs, comb)
+		} else {
+			// this part is not efficient, if the worker has the ability to run
+			// the task until it reaches the end without sacrifising performance
+			// then we can use -1 to indicate those types of tasks
+			ints = append(ints, countUntilFinal(charset, comb))
+			combs = append(combs, comb)
+			break
+		}
+		comb = newComb
+	}
+	return combs, ints
+}
 
 func nextCombination(charset lib.CharSet, v int, inp []byte) ([]byte, int) {
 	base := len(charSetSlice[charset])
-	res, rem := addToIntSlice(base, v, bytesToIntSlice(charset, inp))
-	return intSliceToBytes(charset, res), rem
+	res, carry := addToIntSlice(base, v, bytesToIntSlice(charset, inp))
+	return intSliceToBytes(charset, res), carry
 }
 
-// TODO is combination the right term?
-func initialCombination(charset lib.CharSet, keyLen int) []byte {
-	v := charSetSlice[charset][0]
-	res := make([]byte, keyLen)
+// not so efficient
+// we can use binary search to improve the performance
+func countUntilFinal(charset lib.CharSet, comb []byte) int {
+	f := bytesToIntSlice(charset, finalCombination(charset, len(comb)))
+	combi := bytesToIntSlice(charset, comb)
+	base := len(charSetSlice[charset])
+	i := 0
+	for !testEq(f, combi) {
+		combi, _ = addToIntSlice(base, 1, combi)
+		i++
+	}
+	return i
+}
+
+func initialCombination(charset lib.CharSet, l int) []byte {
+	return replicateAt(charset, l, 0)
+}
+
+func finalCombination(charset lib.CharSet, l int) []byte {
+	return replicateAt(charset, l, len(charSetSlice[charset])-1)
+}
+
+func replicateAt(charset lib.CharSet, l int, idx int) []byte {
+	v := charSetSlice[charset][idx]
+	res := make([]byte, l)
 	for i := range res {
 		res[i] = v
 	}
@@ -57,7 +102,8 @@ func initialCombination(charset lib.CharSet, keyLen int) []byte {
 func bytesToIntSlice(charset lib.CharSet, inp []byte) []int {
 	res := make([]int, len(inp))
 	for i, b := range inp {
-		x := bytes.IndexByte(charSetSlice[charset], b) // probably not efficient
+		// probably not efficient, but the character sets are small so it's negligible
+		x := bytes.IndexByte(charSetSlice[charset], b)
 		if x < 0 {
 			panic("Invalid characters!")
 		}
@@ -66,7 +112,7 @@ func bytesToIntSlice(charset lib.CharSet, inp []byte) []int {
 	return res
 }
 
-func addToIntSlice(base, v int, inp []int) ([]int, int) {
+func addToIntSlice(base, v int, inp []int) (result []int, carry int) {
 	for i := range inp {
 		r := v % base
 		tmp := inp[i] + r
@@ -87,4 +133,27 @@ func intSliceToBytes(charset lib.CharSet, inp []int) []byte {
 		res[i] = charSetSlice[charset][v]
 	}
 	return res
+}
+
+func testEq(a, b []int) bool {
+
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil {
+		return false
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
 }
