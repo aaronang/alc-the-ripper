@@ -41,6 +41,7 @@ func (t *Task) ToJSON() ([]byte, error) {
 	return json.Marshal(t)
 }
 
+// Algorithm is an enum for the supported key derivation functions
 type Algorithm int
 
 const (
@@ -50,15 +51,33 @@ const (
 	ARGON2
 )
 
-type CharSet int
+// Alphabet
+type Alphabet int
 
 const (
-	Numerical CharSet = iota
+	Numerical Alphabet = iota
 	AlphaLower
 	AlphaMixed
 	AlphaNumLower
 	AlphaNumMixed
 )
+
+func (alph Alphabet) InitialCandidate(l int) []byte {
+	return alph.replicateAt(l, 0)
+}
+
+func (alph Alphabet) FinalCandidate(l int) []byte {
+	return alph.replicateAt(l, len(Alphabets[alph])-1)
+}
+
+func (alph Alphabet) replicateAt(l int, idx int) []byte {
+	v := Alphabets[alph][idx]
+	res := make([]byte, l)
+	for i := range res {
+		res[i] = v
+	}
+	return res
+}
 
 // Job is the customer facing resource representing a single password cracking job
 // we focus on PBKDF2 first with SHA256 first
@@ -67,12 +86,12 @@ type Job struct {
 	Digest    []byte
 	KeyLen    int
 	Iter      int
-	CharSet   CharSet
+	Alphabet  Alphabet
 	Algorithm Algorithm
 }
 
 // CharSetSlice contains the set of all candidate characters for every alphabet
-var CharSetSlice [][]byte
+var Alphabets [][]byte
 
 func init() {
 	const nums string = "0123456789"
@@ -80,7 +99,7 @@ func init() {
 	const alphaMixed string = alphaLower + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	const alphaNumLower string = nums + alphaLower
 	const alphaNumMixed string = nums + alphaMixed
-	CharSetSlice = [][]byte{
+	Alphabets = [][]byte{
 		[]byte(nums),
 		[]byte(alphaLower),
 		[]byte(alphaMixed),
@@ -88,11 +107,11 @@ func init() {
 		[]byte(alphaNumMixed)}
 }
 
-func BytesToIntSlice(charset CharSet, inp []byte) []int {
+func BytesToIntSlice(charset Alphabet, inp []byte) []int {
 	res := make([]int, len(inp))
 	for i, b := range inp {
 		// probably not efficient, but the character sets are small so it's negligible
-		x := bytes.IndexByte(CharSetSlice[charset], b)
+		x := bytes.IndexByte(Alphabets[charset], b)
 		if x < 0 {
 			panic("Invalid characters!")
 		}
@@ -116,10 +135,10 @@ func AddToIntSlice(base, v int, inp []int) ([]int, int) {
 	return inp, v // v is the carry
 }
 
-func IntSliceToBytes(charset CharSet, inp []int) []byte {
+func IntSliceToBytes(charset Alphabet, inp []int) []byte {
 	res := make([]byte, len(inp))
 	for i, v := range inp {
-		res[i] = CharSetSlice[charset][v]
+		res[i] = Alphabets[charset][v]
 	}
 	return res
 }

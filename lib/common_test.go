@@ -67,3 +67,23 @@ func TestIntSliceToBytes(t *testing.T) {
 		t.Error("alpha mixed comparison failed")
 	}
 }
+
+func TestInitialCandidate(t *testing.T) {
+	if bytes.Compare(AlphaLower.InitialCandidate(5), []byte("aaaaa")) != 0 {
+		t.Error("failed to generate initial alpha")
+	}
+
+	if bytes.Compare(AlphaNumLower.InitialCandidate(4), []byte("0000")) != 0 {
+		t.Error("failed to generate initial alpha")
+	}
+}
+
+func TestFinalCandidate(t *testing.T) {
+	if bytes.Compare(AlphaLower.FinalCandidate(5), []byte("zzzzz")) != 0 {
+		t.Error("failed to generate final alpha")
+	}
+
+	if bytes.Compare(AlphaNumLower.FinalCandidate(4), []byte("zzzz")) != 0 {
+		t.Error("failed to generate final alpha")
+	}
+}
