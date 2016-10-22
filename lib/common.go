@@ -35,6 +35,7 @@ type Task struct {
 	ID      int
 	Start   []byte
 	TaskLen int
+	IsFinal bool
 }
 
 // ToJSON serializes a Task to JSON.

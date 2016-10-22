@@ -23,8 +23,10 @@ func SplitJob(job *job, taskSize int) []lib.Task {
 			JobID:   job.id,
 			ID:      i,
 			Start:   cands[i],
-			TaskLen: lens[i]})
+			TaskLen: lens[i],
+			IsFinal: true})
 	}
+	tasks[len(tasks)-1].IsFinal = false
 	return tasks
 }
 
@@ -35,15 +37,9 @@ func chunkCandidates(alph lib.Alphabet, l, n int) ([][]byte, []int) {
 	var lens []int
 	for {
 		newCand, carry := nthCandidateFrom(alph, n, cand)
-		if carry == 0 {
-			lens = append(lens, n)
-			cands = append(cands, cand)
-		} else {
-			// this part is not efficient, if the worker has the ability to run
-			// the task until it reaches the end without sacrifising performance
-			// then we can use -1 to indicate those types of tasks
-			lens = append(lens, countUntilFinal(alph, cand))
-			cands = append(cands, cand)
+		lens = append(lens, n)
+		cands = append(cands, cand)
+		if carry != 0 {
 			break
 		}
 		cand = newCand
@@ -58,6 +54,7 @@ func nthCandidateFrom(alph lib.Alphabet, n int, inp []byte) ([]byte, int) {
 	return lib.IntSliceToBytes(alph, res), carry
 }
 
+/*
 // countUntilFinal counts the number of iterations until the final candidate starting from cand
 // not so efficient
 // we can use binary search to improve the performance
@@ -72,3 +69,4 @@ func countUntilFinal(alph lib.Alphabet, cand []byte) int {
 	}
 	return i
 }
+*/

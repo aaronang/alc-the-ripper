@@ -48,21 +48,18 @@ func TestChunkCandidates(t *testing.T) {
 		t.Error("failed to chunk 3 alpha chars - wrong length")
 	}
 
-	if !testLastIsFinal(lib.AlphaLower, combs, lens) {
-		t.Error("failed to chunk 3 alpha chars - last combination is not final")
-	}
-
 	combs2, lens2 := chunkCandidates(lib.Numerical, 2, 8)
-	if !testLastIsFinal(lib.Numerical, combs2, lens2) {
-		t.Error("failed to chunk 4 num chars - last combination is not final")
+	if len(combs2) != 13 || len(lens2) != 13 {
+		t.Error("failed to chunk 4 num chars - wrong length")
 	}
 
 	combs3, lens3 := chunkCandidates(lib.AlphaNumLower, 6, 1024*1024)
-	if !testLastIsFinal(lib.AlphaNumLower, combs3, lens3) {
-		t.Error("failed to chunk 6 alpha num - last combination is not final")
+	if len(combs3) != 2076 || len(lens3) != 2076 {
+		t.Error("failed to chunk 6 alpha num - wrong length")
 	}
 }
 
+/*
 func testLastIsFinal(alph lib.Alphabet, combs [][]byte, lens []int) bool {
 	l := lens[len(lens)-1]
 	b := combs[len(combs)-1]
@@ -73,3 +70,4 @@ func testLastIsFinal(alph lib.Alphabet, combs [][]byte, lens []int) bool {
 	}
 	return true
 }
+*/
