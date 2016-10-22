@@ -90,7 +90,7 @@ type Job struct {
 	Algorithm Algorithm
 }
 
-// CharSetSlice contains the set of all candidate characters for every alphabet
+// Alphabets contains the set of all candidate characters for every alphabet
 var Alphabets [][]byte
 
 func init() {
@@ -107,11 +107,11 @@ func init() {
 		[]byte(alphaNumMixed)}
 }
 
-func BytesToIntSlice(charset Alphabet, inp []byte) []int {
+func BytesToIntSlice(alph Alphabet, inp []byte) []int {
 	res := make([]int, len(inp))
 	for i, b := range inp {
 		// probably not efficient, but the character sets are small so it's negligible
-		x := bytes.IndexByte(Alphabets[charset], b)
+		x := bytes.IndexByte(Alphabets[alph], b)
 		if x < 0 {
 			panic("Invalid characters!")
 		}
@@ -135,10 +135,10 @@ func AddToIntSlice(base, v int, inp []int) ([]int, int) {
 	return inp, v // v is the carry
 }
 
-func IntSliceToBytes(charset Alphabet, inp []int) []byte {
+func IntSliceToBytes(alph Alphabet, inp []int) []byte {
 	res := make([]byte, len(inp))
 	for i, v := range inp {
-		res[i] = Alphabets[charset][v]
+		res[i] = Alphabets[alph][v]
 	}
 	return res
 }
