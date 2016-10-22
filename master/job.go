@@ -11,7 +11,7 @@ import (
 type job struct {
 	lib.Job
 	id    int
-	tasks []lib.Task
+	tasks []*lib.Task
 }
 
 // SplitJob attempts to split a cracking job into equal sized tasks regardless of the job

@@ -26,6 +26,18 @@ const (
 	AWSRegion = "eu-west-1"
 )
 
+type Heartbeat struct {
+	SlaveId    string // aws.Instance.InstanceId
+	TaskStatus []TaskStatus
+}
+
+type TaskStatus struct {
+	Id       int
+	JobId    int
+	Done     bool
+	Progress []byte // State of permutation
+}
+
 // A Task defines the computational domain for string permutations. This way,
 // the slave knows from which string permutation to start and at which string
 // permutation to stop.

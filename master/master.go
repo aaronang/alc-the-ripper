@@ -9,6 +9,44 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
+type slave struct {
+	tasks []*lib.Task
+	// others
+}
+
+type master struct {
+	instances map[string]slave
+	jobs map[string]*job
+	jobsChan chan lib.Job
+	heartbeatChan chan lib.Heartbeat
+	tasks map[int]*lib.Task
+}
+
+func (m *master) Run() {
+	http.HandleFunc("/", m.jobsHandler)
+	go http.ListenAndServe(lib.Port, nil)
+	
+	for {
+		select {
+		case job := <- jobsChan:
+			// split the job into tasks
+		case beat := <- heartbeatChan:
+			// update task statuses
+			// check whether a job has completed all its tasks
+		}
+	}
+}
+
+func (m *master)jobsHandler(w http.ResponseWriter, r *http.Request) {
+	var j Job
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&j); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	m.jobsChan <- j
+}
+
 // CreateSlaves creates a new slave instance.
 func CreateSlaves(svc *ec2.EC2, count int64) ([]*ec2.Instance, error) {
 	params := &ec2.RunInstancesInput{
