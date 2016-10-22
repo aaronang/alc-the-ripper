@@ -2,6 +2,7 @@ package master
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 
 	"github.com/aaronang/cong-the-ripper/lib"
@@ -11,40 +12,78 @@ import (
 
 type slave struct {
 	tasks []*lib.Task
-	// others
+	// TODO others
 }
 
-type master struct {
-	instances map[string]slave
-	jobs map[string]*job
-	jobsChan chan lib.Job
-	heartbeatChan chan lib.Heartbeat
-	tasks map[int]*lib.Task
+type Master struct {
+	instances      map[string]slave
+	jobs           map[string]*job
+	jobsChan       chan lib.Job
+	heartbeatChan  chan lib.Heartbeat
+	statusChan     chan chan string // dummy
+	newTasks       []*lib.Task
+	scheduledTasks []*lib.Task
+	controllerChan chan string // dummy
+	scheduleChan   chan int    // channel to instruct the main loop to schedule tasks
 }
 
-func (m *master) Run() {
-	http.HandleFunc("/", m.jobsHandler)
+func Init() Master {
+	// TODO initialise Master correctly
+	return Master{}
+}
+
+func (m *Master) Run() {
+	http.HandleFunc("/jobs/create", m.jobsHandler)
+	http.HandleFunc("/heartbeat", m.heartbeatHandler)
+	http.HandleFunc("/cong", m.statusHandler)
+
 	go http.ListenAndServe(lib.Port, nil)
-	
+
 	for {
 		select {
-		case job := <- jobsChan:
+		case <-m.scheduleChan:
+			// we shedule the tasks when something is in this channel
+			// give the controller new data
+			// (controller runs in the background and manages the number of instances)
+			// call load balancer function to schedule the tasks
+			// move tasks from `newTasks` to `scheduledTasks`
+		case job := <-m.jobsChan:
 			// split the job into tasks
-		case beat := <- heartbeatChan:
+			// update `jobs` and `newTasks`
+			_ = job
+		case beat := <-m.heartbeatChan:
 			// update task statuses
 			// check whether a job has completed all its tasks
+			_ = beat
+		case c := <-m.statusChan:
+			// status handler gives us a channel,
+			// we write the status into the channel and the the handler "serves" the result
+			_ = c
 		}
 	}
 }
 
-func (m *master)jobsHandler(w http.ResponseWriter, r *http.Request) {
-	var j Job
+func (m *Master) jobsHandler(w http.ResponseWriter, r *http.Request) {
+	var j lib.Job
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&j); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	m.jobsChan <- j
+}
+
+func (m *Master) heartbeatHandler(w http.ResponseWriter, r *http.Request) {
+	var beat lib.Heartbeat
+	// TODO parse json and sends the results directly to the  main loop
+	m.heartbeatChan <- beat
+}
+
+func (m *Master) statusHandler(w http.ResponseWriter, r *http.Request) {
+	resultsChan := make(chan string)
+	m.statusChan <- resultsChan
+	<-resultsChan
+	// TODO read the results and serve status page
 }
 
 // CreateSlaves creates a new slave instance.

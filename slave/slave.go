@@ -1,4 +1,4 @@
-package main
+package slave
 
 import (
 	"encoding/json"
@@ -18,7 +18,7 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(t)
 }
 
-func main() {
+func Run() {
 	http.HandleFunc(lib.CreateTaskPath, taskHandler)
 	http.ListenAndServe(lib.Port, nil)
 }
