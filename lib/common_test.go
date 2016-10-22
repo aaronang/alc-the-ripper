@@ -87,3 +87,15 @@ func TestFinalCandidate(t *testing.T) {
 		t.Error("failed to generate final alpha")
 	}
 }
+
+func TestIntStuff(t *testing.T) {
+	sliceNum := []byte("0690385669")
+	if bytes.Compare(sliceNum, Numerical.BigIntToBytes(Numerical.BytesToBigInt(sliceNum))) != 0 {
+		t.Error("numerical comparison failed")
+	}
+
+	sliceAlphaLower := []byte("zsdlfkjasreituxnkfzvlksd")
+	if bytes.Compare(sliceAlphaLower, AlphaLower.BigIntToBytes(AlphaLower.BytesToBigInt(sliceAlphaLower))) != 0 {
+		t.Error("alpha comparison failed")
+	}
+}

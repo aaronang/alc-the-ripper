@@ -3,6 +3,7 @@ package lib
 import (
 	"bytes"
 	"encoding/json"
+	"math/big"
 )
 
 // Global configuration
@@ -75,6 +76,47 @@ func (alph Alphabet) replicateAt(l int, idx int) []byte {
 	res := make([]byte, l)
 	for i := range res {
 		res[i] = v
+	}
+	return res
+}
+
+func (alph Alphabet) BytesToBigInt(inp []byte) *big.Int {
+	base := big.NewInt(int64(len(Alphabets[alph])))
+	res := big.NewInt(0)
+	for i, b := range inp {
+		// probably not efficient, but the character sets are small so it's negligible
+		x := bytes.IndexByte(Alphabets[alph], b)
+		if x < 0 {
+			panic("Invalid characters!")
+		}
+		z := big.NewInt(0)
+		z.Exp(base, big.NewInt(int64(i)), nil)
+		z.Mul(z, big.NewInt(int64(x)))
+		res.Add(res, z)
+	}
+	return res
+}
+
+// note that the input is consumed
+func (alph Alphabet) BigIntToBytes(x *big.Int) []byte {
+	base := big.NewInt(int64(len(Alphabets[alph])))
+	m := big.NewInt(0)
+	zero := big.NewInt(0)
+	var res []byte
+	for {
+		x, m = x.DivMod(x, base, m)
+		if len(m.Bytes()) == 0 {
+			res = append(res, 0)
+		} else {
+			res = append(res, m.Bytes()...)
+		}
+		if x.Cmp(zero) == 0 {
+			break
+		}
+	}
+
+	for i := range res {
+		res[i] = Alphabets[alph][res[i]]
 	}
 	return res
 }
