@@ -1,4 +1,4 @@
-package cracker
+package slave
 
 import (
 	"testing"
@@ -7,8 +7,11 @@ import (
 )
 
 var task lib.Task
+var slave *Slave
 
 func Setup() {
+	slave = Init("instance.EC2.cong1")
+
 	job := lib.Job{
 		Salt:      []byte("salty"),
 		Digest:    "WTpSrbQAR8IMSK9uMoOQEXfKy+2FojN8yEz+T1n21uE=", // cong
@@ -29,11 +32,11 @@ func Setup() {
 
 func TestHit(t *testing.T) {
 	Setup()
-	Execute(task)
+	Execute(task, slave)
 }
 
 func TestMiss(t *testing.T) {
 	Setup()
 	task.TaskLen = 1
-	Execute(task)
+	Execute(task, slave)
 }

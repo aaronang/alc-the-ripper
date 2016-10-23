@@ -6,20 +6,55 @@ import (
 	"net/http"
 
 	"github.com/aaronang/cong-the-ripper/lib"
-	"github.com/aaronang/cong-the-ripper/slave/cracker"
 )
 
+var slaveInstance Slave
+
 type Slave struct {
+	heartbeat   lib.Heartbeat
+	successChan chan CrackerSuccess
+	failChan    chan CrackerFail
+	addTaskChan chan lib.Task
 }
 
-func Init() Slave {
-	// TODO initialise Slave correctly
-	return Slave{}
+func Init(instanceId string) *Slave {
+	heartbeat := lib.Heartbeat {
+		SlaveId: instanceId,
+	}
+
+	slaveInstance = Slave{
+		heartbeat:   heartbeat,
+		successChan: make(chan CrackerSuccess),
+		failChan:    make(chan CrackerFail),
+		addTaskChan: make(chan lib.Task),
+	}
+	return &slaveInstance
 }
 
 func (s *Slave) Run() {
 	http.HandleFunc(lib.TasksCreatePath, taskHandler)
-	http.ListenAndServe(lib.Port, nil)
+	go http.ListenAndServe(lib.Port, nil)
+
+	for {
+		select {
+		case task := <- s.addTaskChan:
+			fmt.Println("add task")
+			taskStatus := lib.TaskStatus {
+				Id: task.ID,
+				JobId: task.JobID,
+				Done: false,
+				Progress: task.Start,
+			}
+			s.heartbeat.TaskStatus = append(s.heartbeat.TaskStatus, taskStatus)
+			fmt.Println(s.heartbeat.TaskStatus)
+
+		case msg := <- s.successChan:
+			fmt.Println("Found password: " + msg.Password)
+
+		case <- s.failChan:
+			fmt.Println("Password not found")
+		}
+	}
 }
 
 func taskHandler(w http.ResponseWriter, r *http.Request) {
@@ -29,6 +64,7 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	slaveInstance.addTaskChan <- t
 	fmt.Println(t)
-	go cracker.Execute(t)
+	go Execute(t, &slaveInstance)
 }
