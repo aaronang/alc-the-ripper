@@ -180,7 +180,8 @@ func BytesToBigInt(alph Alphabet, inp []byte) *big.Int {
 }
 
 // note that the input is consumed
-func BigIntToBytes(alph Alphabet, x *big.Int, l int) ([]byte, bool) {
+func BigIntToBytes(alph Alphabet, bigInt *big.Int, l int) ([]byte, bool) {
+	x := big.NewInt(0).Set(bigInt)
 	base := big.NewInt(int64(len(Alphabets[alph])))
 	m := big.NewInt(0)
 	zero := big.NewInt(0)
