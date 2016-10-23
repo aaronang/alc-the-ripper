@@ -13,7 +13,10 @@ const (
 
 	BodyType = "application/json"
 
-	CreateTaskPath = "/tasks/create"
+	TasksCreatePath = "/tasks/create"
+	JobsCreatePath  = "/jobs/create"
+	HeartbeatPath   = "/heartbeat"
+	StatusPath      = "/cong"
 
 	SlaveARN   = "arn:aws:iam::415077340068:instance-profile/SlaveTheRipper"
 	SlaveRole  = "SlaveTheRipper"
@@ -204,7 +207,7 @@ func BigIntToBytes(alph Alphabet, x *big.Int, l int) ([]byte, bool) {
 		res = append(res, make([]byte, l-len(res))...)
 	} else if len(res) > l {
 		overflow = true
-		res = res[0:l]
+		res = res[:l]
 	}
 
 	// convert the byte slice to string readable

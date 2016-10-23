@@ -33,9 +33,9 @@ func Init() Master {
 }
 
 func (m *Master) Run() {
-	http.HandleFunc("/jobs/create", m.jobsHandler)
-	http.HandleFunc("/heartbeat", m.heartbeatHandler)
-	http.HandleFunc("/cong", m.statusHandler)
+	http.HandleFunc(lib.JobsCreatePath, m.jobsHandler)
+	http.HandleFunc(lib.HeartbeatPath, m.heartbeatHandler)
+	http.HandleFunc(lib.StatusPath, m.statusHandler)
 
 	go http.ListenAndServe(lib.Port, nil)
 
@@ -111,7 +111,7 @@ func TerminateSlaves(svc *ec2.EC2, instances []*ec2.Instance) (*ec2.TerminateIns
 
 // SendTask sends a task to a slave instance.
 func SendTask(t *lib.Task, i *ec2.Instance) (*http.Response, error) {
-	url := lib.Protocol + *i.PublicIpAddress + lib.Port + lib.CreateTaskPath
+	url := lib.Protocol + *i.PublicIpAddress + lib.Port + lib.TasksCreatePath
 	body, err := t.ToJSON()
 	if err != nil {
 		panic(err)
