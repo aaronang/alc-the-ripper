@@ -1,6 +1,8 @@
 package master
 
 import (
+	"math/big"
+
 	"github.com/aaronang/cong-the-ripper/lib"
 )
 
@@ -14,7 +16,7 @@ type job struct {
 
 // SplitJob attempts to split a cracking job into equal sized tasks regardless of the job
 // the taskSize represents the number of brute force iterations
-func SplitJob(job *job, taskSize int) []lib.Task {
+func SplitJob(job *job, taskSize int64) []lib.Task {
 	var tasks []lib.Task
 	cands, lens := chunkCandidates(job.Alphabet, job.KeyLen, taskSize)
 	for i := range cands {
@@ -23,24 +25,24 @@ func SplitJob(job *job, taskSize int) []lib.Task {
 			JobID:   job.id,
 			ID:      i,
 			Start:   cands[i],
-			TaskLen: lens[i],
-			IsFinal: true})
+			TaskLen: lens[i]})
 	}
-	tasks[len(tasks)-1].IsFinal = false
 	return tasks
 }
 
 // chunkCandidates takes a character set and the required length l and splits to chunks of size n
-func chunkCandidates(alph lib.Alphabet, l, n int) ([][]byte, []int) {
+func chunkCandidates(alph lib.Alphabet, l int, n int64) ([][]byte, []int64) {
 	cand := alph.InitialCandidate(l)
 	var cands [][]byte
-	var lens []int
+	var lens []int64
 	for {
-		newCand, carry := nthCandidateFrom(alph, n, cand)
-		lens = append(lens, n)
+		newCand, overflow := nthCandidateFrom(alph, n, cand)
 		cands = append(cands, cand)
-		if carry != 0 {
+		if overflow {
+			lens = append(lens, countUntilFinal(alph, cand))
 			break
+		} else {
+			lens = append(lens, n)
 		}
 		cand = newCand
 	}
@@ -48,25 +50,22 @@ func chunkCandidates(alph lib.Alphabet, l, n int) ([][]byte, []int) {
 }
 
 // nthCandidateFrom computes the n th candidate password from inp
-func nthCandidateFrom(alph lib.Alphabet, n int, inp []byte) ([]byte, int) {
-	base := len(lib.Alphabets[alph])
-	res, carry := lib.AddToIntSlice(base, n, lib.BytesToIntSlice(alph, inp))
-	return lib.IntSliceToBytes(alph, res), carry
+func nthCandidateFrom(alph lib.Alphabet, n int64, inp []byte) ([]byte, bool) {
+	l := len(inp)
+	var overflow bool
+	z := lib.BytesToBigInt(alph, inp)
+	z = z.Add(z, big.NewInt(n))
+	res := lib.BigIntToBytes(alph, z, l)
+	if len(res) > l {
+		overflow = true
+	}
+	return res, overflow
 }
 
-/*
 // countUntilFinal counts the number of iterations until the final candidate starting from cand
-// not so efficient
-// we can use binary search to improve the performance
-func countUntilFinal(alph lib.Alphabet, cand []byte) int {
-	f := lib.BytesToIntSlice(alph, alph.FinalCandidate(len(cand)))
-	cand2 := lib.BytesToIntSlice(alph, cand)
-	base := len(lib.Alphabets[alph])
-	i := 0
-	for !lib.TestEqInts(f, cand2) {
-		cand2, _ = lib.AddToIntSlice(base, 1, cand2)
-		i++
-	}
-	return i
+func countUntilFinal(alph lib.Alphabet, cand []byte) int64 {
+	c := lib.BytesToBigInt(alph, cand)
+	f := lib.BytesToBigInt(alph, alph.FinalCandidate(len(cand)))
+	diff := f.Sub(f, c)
+	return diff.Int64()
 }
-*/

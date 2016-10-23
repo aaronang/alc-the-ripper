@@ -34,8 +34,7 @@ type Task struct {
 	JobID   int
 	ID      int
 	Start   []byte
-	TaskLen int
-	IsFinal bool
+	TaskLen int64
 }
 
 // ToJSON serializes a Task to JSON.
@@ -72,52 +71,11 @@ func (alph Alphabet) FinalCandidate(l int) []byte {
 	return alph.replicateAt(l, len(Alphabets[alph])-1)
 }
 
-func (alph Alphabet) replicateAt(l int, idx int) []byte {
+func (alph Alphabet) replicateAt(l, idx int) []byte {
 	v := Alphabets[alph][idx]
 	res := make([]byte, l)
 	for i := range res {
 		res[i] = v
-	}
-	return res
-}
-
-func (alph Alphabet) BytesToBigInt(inp []byte) *big.Int {
-	base := big.NewInt(int64(len(Alphabets[alph])))
-	res := big.NewInt(0)
-	for i, b := range inp {
-		// probably not efficient, but the character sets are small so it's negligible
-		x := bytes.IndexByte(Alphabets[alph], b)
-		if x < 0 {
-			panic("Invalid characters!")
-		}
-		z := big.NewInt(0)
-		z.Exp(base, big.NewInt(int64(i)), nil)
-		z.Mul(z, big.NewInt(int64(x)))
-		res.Add(res, z)
-	}
-	return res
-}
-
-// note that the input is consumed
-func (alph Alphabet) BigIntToBytes(x *big.Int) []byte {
-	base := big.NewInt(int64(len(Alphabets[alph])))
-	m := big.NewInt(0)
-	zero := big.NewInt(0)
-	var res []byte
-	for {
-		x, m = x.DivMod(x, base, m)
-		if len(m.Bytes()) == 0 {
-			res = append(res, 0)
-		} else {
-			res = append(res, m.Bytes()...)
-		}
-		if x.Cmp(zero) == 0 {
-			break
-		}
-	}
-
-	for i := range res {
-		res[i] = Alphabets[alph][res[i]]
 	}
 	return res
 }
@@ -150,6 +108,7 @@ func init() {
 		[]byte(alphaNumMixed)}
 }
 
+// BytesToIntSlice is DEPRECATED
 func BytesToIntSlice(alph Alphabet, inp []byte) []int {
 	res := make([]int, len(inp))
 	for i, b := range inp {
@@ -163,6 +122,7 @@ func BytesToIntSlice(alph Alphabet, inp []byte) []int {
 	return res
 }
 
+// AddToIntSlice is DEPRECATED
 func AddToIntSlice(base, v int, inp []int) ([]int, int) {
 	for i := range inp {
 		r := v % base
@@ -178,6 +138,7 @@ func AddToIntSlice(base, v int, inp []int) ([]int, int) {
 	return inp, v // v is the carry
 }
 
+// IntSliceToBytes is DEPRECATED
 func IntSliceToBytes(alph Alphabet, inp []int) []byte {
 	res := make([]byte, len(inp))
 	for i, v := range inp {
@@ -186,6 +147,59 @@ func IntSliceToBytes(alph Alphabet, inp []int) []byte {
 	return res
 }
 
+func BytesToBigInt(alph Alphabet, inp []byte) *big.Int {
+	base := big.NewInt(int64(len(Alphabets[alph])))
+	res := big.NewInt(0)
+	for i, b := range inp {
+		// probably not efficient, but the alphabets are small so it's negligible
+		x := bytes.IndexByte(Alphabets[alph], b)
+		if x < 0 {
+			panic("Invalid characters!")
+		}
+		z := big.NewInt(0)
+		z.Exp(base, big.NewInt(int64(i)), nil)
+		z.Mul(z, big.NewInt(int64(x)))
+		res.Add(res, z)
+	}
+	return res
+}
+
+// note that the input is consumed
+func BigIntToBytes(alph Alphabet, x *big.Int, l int) []byte {
+	base := big.NewInt(int64(len(Alphabets[alph])))
+	m := big.NewInt(0)
+	zero := big.NewInt(0)
+	var res []byte
+
+	// we use the algorith described here
+	// https://math.stackexchange.com/questions/111150/changing-a-number-between-arbitrary-bases
+	for {
+		x, m = x.DivMod(x, base, m)
+		if len(m.Bytes()) == 0 {
+			res = append(res, 0)
+		} else {
+			res = append(res, m.Bytes()...)
+		}
+		if x.Cmp(zero) == 0 {
+			break
+		}
+	}
+
+	// the length must be the same as the original byte
+	// so we add extra zeros to the end if necessary
+	if len(res) < l {
+		res = append(res, make([]byte, l-len(res))...)
+	}
+
+	// convert the byte slice to string readable
+	for i := range res {
+		res[i] = Alphabets[alph][res[i]]
+	}
+
+	return res
+}
+
+// TestEqInts tests the equality between two int slices
 func TestEqInts(a, b []int) bool {
 
 	if a == nil && b == nil {
