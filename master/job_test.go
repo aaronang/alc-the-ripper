@@ -16,7 +16,11 @@ func TestNextCandidate(t *testing.T) {
 		t.Error("alpha next candidate overflow not zero (1)")
 	}
 
-	_, overflow2 := nthCandidateFrom(lib.AlphaLower, 2, []byte("yzzz"))
+	// the result should cycle back and overflow should be set
+	res2, overflow2 := nthCandidateFrom(lib.AlphaLower, 2, []byte("yzzz"))
+	if bytes.Compare(res2, []byte("aaaa")) != 0 {
+		t.Error("alpha next candidate failed (2)")
+	}
 	if !overflow2 {
 		t.Error("alpha next candidate should overflow (2)")
 	}

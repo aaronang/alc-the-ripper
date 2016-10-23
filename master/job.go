@@ -52,14 +52,9 @@ func chunkCandidates(alph lib.Alphabet, l int, n int64) ([][]byte, []int64) {
 // nthCandidateFrom computes the n th candidate password from inp
 func nthCandidateFrom(alph lib.Alphabet, n int64, inp []byte) ([]byte, bool) {
 	l := len(inp)
-	var overflow bool
 	z := lib.BytesToBigInt(alph, inp)
 	z = z.Add(z, big.NewInt(n))
-	res := lib.BigIntToBytes(alph, z, l)
-	if len(res) > l {
-		overflow = true
-	}
-	return res, overflow
+	return lib.BigIntToBytes(alph, z, l)
 }
 
 // countUntilFinal counts the number of iterations until the final candidate starting from cand
