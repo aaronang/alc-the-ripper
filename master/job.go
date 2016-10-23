@@ -53,7 +53,7 @@ func chunkCandidates(alph lib.Alphabet, l int, n int64) ([][]byte, []int64) {
 func nthCandidateFrom(alph lib.Alphabet, n int64, inp []byte) ([]byte, bool) {
 	l := len(inp)
 	z := lib.BytesToBigInt(alph, inp)
-	z = z.Add(z, big.NewInt(n))
+	z.Add(z, big.NewInt(n))
 	return lib.BigIntToBytes(alph, z, l)
 }
 
