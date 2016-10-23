@@ -13,7 +13,10 @@ const (
 
 	BodyType = "application/json"
 
-	CreateTaskPath = "/tasks/create"
+	TasksCreatePath = "/tasks/create"
+	JobsCreatePath  = "/jobs/create"
+	HeartbeatPath   = "/heartbeat"
+	StatusPath      = "/cong"
 
 	SlaveARN   = "arn:aws:iam::415077340068:instance-profile/SlaveTheRipper"
 	SlaveRole  = "SlaveTheRipper"
@@ -25,6 +28,18 @@ const (
 
 	AWSRegion = "eu-west-1"
 )
+
+type Heartbeat struct {
+	SlaveId    string // aws.Instance.InstanceId
+	TaskStatus []TaskStatus
+}
+
+type TaskStatus struct {
+	Id       int
+	JobId    int
+	Done     bool
+	Progress []byte // State of permutation
+}
 
 // A Task defines the computational domain for string permutations. This way,
 // the slave knows from which string permutation to start and at which string
@@ -165,7 +180,7 @@ func BytesToBigInt(alph Alphabet, inp []byte) *big.Int {
 }
 
 // note that the input is consumed
-func BigIntToBytes(alph Alphabet, x *big.Int, l int) []byte {
+func BigIntToBytes(alph Alphabet, x *big.Int, l int) ([]byte, bool) {
 	base := big.NewInt(int64(len(Alphabets[alph])))
 	m := big.NewInt(0)
 	zero := big.NewInt(0)
@@ -187,8 +202,12 @@ func BigIntToBytes(alph Alphabet, x *big.Int, l int) []byte {
 
 	// the length must be the same as the original byte
 	// so we add extra zeros to the end if necessary
+	overflow := false
 	if len(res) < l {
 		res = append(res, make([]byte, l-len(res))...)
+	} else if len(res) > l {
+		overflow = true
+		res = res[:l]
 	}
 
 	// convert the byte slice to string readable
@@ -196,7 +215,7 @@ func BigIntToBytes(alph Alphabet, x *big.Int, l int) []byte {
 		res[i] = Alphabets[alph][res[i]]
 	}
 
-	return res
+	return res, overflow
 }
 
 // TestEqInts tests the equality between two int slices

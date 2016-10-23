@@ -90,26 +90,26 @@ func TestFinalCandidate(t *testing.T) {
 
 func TestIntStuff(t *testing.T) {
 	sliceNum := []byte("0690385669")
-	l1 := len(sliceNum)
-	if bytes.Compare(sliceNum, BigIntToBytes(Numerical, BytesToBigInt(Numerical, sliceNum), l1)) != 0 {
+	res1, _ := BigIntToBytes(Numerical, BytesToBigInt(Numerical, sliceNum), len(sliceNum))
+	if bytes.Compare(sliceNum, res1) != 0 {
 		t.Error("numerical comparison failed")
 	}
 
 	sliceAlphaLower := []byte("zsdlfkjasreituxnkfzvlksd")
-	l2 := len(sliceAlphaLower)
-	if bytes.Compare(sliceAlphaLower, BigIntToBytes(AlphaLower, BytesToBigInt(AlphaLower, sliceAlphaLower), l2)) != 0 {
+	res2, _ := BigIntToBytes(AlphaLower, BytesToBigInt(AlphaLower, sliceAlphaLower), len(sliceAlphaLower))
+	if bytes.Compare(sliceAlphaLower, res2) != 0 {
 		t.Error("alpha comparison failed")
 	}
 
 	sliceAlphaNumLower := []byte("z1dlf9kjasrei12xnzvk7sd0")
-	l3 := len(sliceAlphaNumLower)
-	if bytes.Compare(sliceAlphaNumLower, BigIntToBytes(AlphaNumLower, BytesToBigInt(AlphaNumLower, sliceAlphaNumLower), l3)) != 0 {
+	res3, _ := BigIntToBytes(AlphaNumLower, BytesToBigInt(AlphaNumLower, sliceAlphaNumLower), len(sliceAlphaNumLower))
+	if bytes.Compare(sliceAlphaNumLower, res3) != 0 {
 		t.Error("alpha num comparison failed")
 	}
 
 	sliceAlphaMixed := []byte("UdlkfSDFHsdflFdZFg")
-	l4 := len(sliceAlphaMixed)
-	if bytes.Compare(sliceAlphaMixed, BigIntToBytes(AlphaMixed, BytesToBigInt(AlphaMixed, sliceAlphaMixed), l4)) != 0 {
+	res4, _ := BigIntToBytes(AlphaMixed, BytesToBigInt(AlphaMixed, sliceAlphaMixed), len(sliceAlphaMixed))
+	if bytes.Compare(sliceAlphaMixed, res4) != 0 {
 		t.Error("alpha mixed comparison failed")
 	}
 }
