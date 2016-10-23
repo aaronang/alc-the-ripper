@@ -6,7 +6,21 @@ import (
 	"net/http"
 
 	"github.com/aaronang/cong-the-ripper/lib"
+	"github.com/aaronang/cong-the-ripper/slave/cracker"
 )
+
+type Slave struct {
+}
+
+func Init() Slave {
+	// TODO initialise Slave correctly
+	return Slave{}
+}
+
+func (s *Slave) Run() {
+	http.HandleFunc(lib.TasksCreatePath, taskHandler)
+	http.ListenAndServe(lib.Port, nil)
+}
 
 func taskHandler(w http.ResponseWriter, r *http.Request) {
 	var t lib.Task
@@ -16,9 +30,5 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Println(t)
-}
-
-func Run() {
-	http.HandleFunc(lib.TasksCreatePath, taskHandler)
-	http.ListenAndServe(lib.Port, nil)
+	go cracker.Execute(t)
 }

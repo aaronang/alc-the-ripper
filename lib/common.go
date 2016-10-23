@@ -99,7 +99,7 @@ func (alph Alphabet) replicateAt(l, idx int) []byte {
 // we focus on PBKDF2 first with SHA256 first
 type Job struct {
 	Salt      []byte
-	Digest    []byte
+	Digest    string
 	KeyLen    int
 	Iter      int
 	Alphabet  Alphabet
