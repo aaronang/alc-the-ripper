@@ -3,7 +3,9 @@ package master
 import (
 	"bytes"
 	"encoding/json"
+	"math"
 	"net/http"
+	"time"
 
 	"github.com/aaronang/cong-the-ripper/lib"
 	"github.com/aws/aws-sdk-go/aws"
@@ -11,20 +13,25 @@ import (
 )
 
 type slave struct {
-	tasks []*lib.Task
+	tasks    []*lib.Task
+	maxTasks int
 	// TODO others
+}
+
+type scheduler interface {
+	schedule(map[string]slave) string
 }
 
 type Master struct {
 	instances      map[string]slave
-	jobs           map[string]*job
+	jobs           map[int]*job
 	jobsChan       chan lib.Job
 	heartbeatChan  chan lib.Heartbeat
 	statusChan     chan chan string // dummy
 	newTasks       []*lib.Task
 	scheduledTasks []*lib.Task
 	controllerChan chan string // dummy
-	scheduleChan   chan int    // channel to instruct the main loop to schedule tasks
+	scheduleChan   chan bool   // channel to instruct the main loop to schedule tasks
 }
 
 func Init() Master {
@@ -38,6 +45,7 @@ func (m *Master) Run() {
 	http.HandleFunc(lib.StatusPath, m.statusHandler)
 
 	go http.ListenAndServe(lib.Port, nil)
+	go m.runBackgroundScheduler()
 
 	for {
 		select {
@@ -47,6 +55,8 @@ func (m *Master) Run() {
 			// (controller runs in the background and manages the number of instances)
 			// call load balancer function to schedule the tasks
 			// move tasks from `newTasks` to `scheduledTasks`
+			ip := m.scheduleTask()
+			SendTask(m.newTasks[0], ip)
 		case job := <-m.jobsChan:
 			// split the job into tasks
 			// update `jobs` and `newTasks`
@@ -110,8 +120,8 @@ func TerminateSlaves(svc *ec2.EC2, instances []*ec2.Instance) (*ec2.TerminateIns
 }
 
 // SendTask sends a task to a slave instance.
-func SendTask(t *lib.Task, i *ec2.Instance) (*http.Response, error) {
-	url := lib.Protocol + *i.PublicIpAddress + lib.Port + lib.TasksCreatePath
+func SendTask(t *lib.Task, ip string) (*http.Response, error) {
+	url := lib.Protocol + ip + lib.Port + lib.TasksCreatePath
 	body, err := t.ToJSON()
 	if err != nil {
 		panic(err)
@@ -125,4 +135,50 @@ func instanceIds(instances []*ec2.Instance) []*string {
 		instanceIds[i] = instance.InstanceId
 	}
 	return instanceIds
+}
+
+// runBackgroundScheduler checks every time interval if there is a slave
+// available.
+func (m *Master) runBackgroundScheduler() {
+	for {
+		if m.firstTaskIsValid() {
+			m.scheduleWhenSlotsAvailable()
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func (m *Master) firstTaskIsValid() bool {
+	job := m.jobs[m.newTasks[0].JobID]
+	if job.reachedMaxTasks() {
+		m.requeueFirstTask()
+		return false
+	}
+	return true
+}
+
+func (m *Master) requeueFirstTask() {
+	t := m.newTasks[0]
+	m.newTasks = m.newTasks[1:]
+	m.newTasks = append(m.newTasks, t)
+}
+
+func (m *Master) scheduleWhenSlotsAvailable() {
+	for _, i := range m.instances {
+		if len(i.tasks) < i.maxTasks {
+			m.scheduleChan <- true
+			break
+		}
+	}
+}
+
+func (m *Master) scheduleTask() string {
+	minResources := math.MaxInt64
+	var slaveIP string
+	for k, v := range m.instances {
+		if len(v.tasks) < minResources {
+			slaveIP = k
+		}
+	}
+	return slaveIP
 }

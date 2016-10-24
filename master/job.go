@@ -10,8 +10,14 @@ import (
 
 type job struct {
 	lib.Job
-	id    int
-	tasks []*lib.Task
+	id           int
+	tasks        []*lib.Task
+	runningTasks int
+	maxTasks     int
+}
+
+func (j *job) reachedMaxTasks() bool {
+	return j.runningTasks < j.maxTasks
 }
 
 // SplitJob attempts to split a cracking job into equal sized tasks regardless of the job
