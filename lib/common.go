@@ -38,6 +38,7 @@ type TaskStatus struct {
 	Id       int
 	JobId    int
 	Done     bool
+	Password string
 	Progress []byte // State of permutation
 }
 

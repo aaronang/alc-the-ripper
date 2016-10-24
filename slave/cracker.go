@@ -20,11 +20,11 @@ func Execute(task lib.Task, slave *Slave) {
 			key := pbkdf2.Key(candidate, task.Salt, task.Iter, sha256.Size, sha256.New)
 			fmt.Println("Key base64: " + string(candidate) + " -> " + b64.StdEncoding.EncodeToString(key))
 			if lib.TestEqByteArray(key, digest) {
-				slave.successChan <- CrackerSuccess{TaskID: task.ID, Password: string(candidate)}
+				slave.successChan <- CrackerSuccess{taskID: task.ID, password: string(candidate)}
 				break
 			}
 		} else {
-			slave.failChan <- CrackerFail{TaskID: task.ID}
+			slave.failChan <- CrackerFail{taskID: task.ID}
 			bd.Close()
 			break
 		}

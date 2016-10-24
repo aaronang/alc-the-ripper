@@ -1,10 +1,10 @@
 package slave
 
 type CrackerSuccess struct {
-	TaskID   int
-	Password string
+	taskID   int
+	password string
 }
 
 type CrackerFail struct {
-	TaskID   int
+	taskID   int
 }

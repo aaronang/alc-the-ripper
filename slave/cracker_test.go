@@ -2,6 +2,7 @@ package slave
 
 import (
 	"testing"
+	"time"
 
 	"github.com/aaronang/cong-the-ripper/lib"
 )
@@ -11,6 +12,8 @@ var slave *Slave
 
 func Setup() {
 	slave = Init("instance.EC2.cong1")
+	slave.successChan = make(chan CrackerSuccess)
+	slave.failChan = make(chan CrackerFail)
 
 	job := lib.Job{
 		Salt:      []byte("salty"),
@@ -32,11 +35,22 @@ func Setup() {
 
 func TestHit(t *testing.T) {
 	Setup()
-	Execute(task, slave)
+	go Execute(task, slave)
+	select {
+	case <-time.After(time.Second * 10):
+	case <-slave.failChan:
+		t.Fail()
+	case <-slave.successChan:
+	}
 }
 
 func TestMiss(t *testing.T) {
 	Setup()
 	task.TaskLen = 1
-	Execute(task, slave)
+	go Execute(task, slave)
+	select {
+	case <-slave.successChan:
+		t.Fail()
+	case <-slave.failChan:
+	}
 }

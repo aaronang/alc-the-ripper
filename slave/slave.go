@@ -2,7 +2,6 @@ package slave
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/aaronang/cong-the-ripper/lib"
@@ -18,7 +17,7 @@ type Slave struct {
 }
 
 func Init(instanceId string) *Slave {
-	heartbeat := lib.Heartbeat {
+	heartbeat := lib.Heartbeat{
 		SlaveId: instanceId,
 	}
 
@@ -37,22 +36,14 @@ func (s *Slave) Run() {
 
 	for {
 		select {
-		case task := <- s.addTaskChan:
-			fmt.Println("add task")
-			taskStatus := lib.TaskStatus {
-				Id: task.ID,
-				JobId: task.JobID,
-				Done: false,
-				Progress: task.Start,
-			}
-			s.heartbeat.TaskStatus = append(s.heartbeat.TaskStatus, taskStatus)
-			fmt.Println(s.heartbeat.TaskStatus)
+		case task := <-s.addTaskChan:
+			addTask(task, s)
 
-		case msg := <- s.successChan:
-			fmt.Println("Found password: " + msg.Password)
+		case msg := <-s.successChan:
+			password_found(msg.taskID, msg.password, s)
 
-		case <- s.failChan:
-			fmt.Println("Password not found")
+		case msg := <-s.failChan:
+			password_not_found(msg.taskID, s)
 		}
 	}
 }
@@ -65,6 +56,5 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slaveInstance.addTaskChan <- t
-	fmt.Println(t)
 	go Execute(t, &slaveInstance)
 }
