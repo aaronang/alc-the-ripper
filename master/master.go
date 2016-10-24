@@ -3,6 +3,7 @@ package master
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"math"
 	"net/http"
 	"time"
@@ -46,7 +47,8 @@ func (m *Master) Run() {
 
 	go http.ListenAndServe(lib.Port, nil)
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		// TODO Test how this performs when a lot of tasks get submitted.
+		time.Sleep(time.Duration(100/len(m.newTasks)) * time.Millisecond)
 		m.scheduleChan <- true
 	}()
 
@@ -58,9 +60,10 @@ func (m *Master) Run() {
 			// (controller runs in the background and manages the number of instances)
 			// call load balancer function to schedule the tasks
 			// move tasks from `newTasks` to `scheduledTasks`
-			if m.firstTaskIsValid() && m.slotsAvailable() {
-				ip := m.scheduleTask()
-				SendTask(m.newTasks[0], ip)
+			if m.slotsAvailable() {
+				if task := m.getTaskToSchedule(); task != nil {
+					m.scheduleTask(m.newTasks[0])
+				}
 			}
 		case job := <-m.jobsChan:
 			// split the job into tasks
@@ -142,13 +145,13 @@ func instanceIds(instances []*ec2.Instance) []*string {
 	return instanceIds
 }
 
-func (m *Master) firstTaskIsValid() bool {
-	job := m.jobs[m.newTasks[0].JobID]
-	if job.reachedMaxTasks() {
-		m.requeueFirstTask()
-		return false
+func (m *Master) getTaskToSchedule() *lib.Task {
+	for idx, t := range m.newTasks {
+		if !m.jobs[t.JobID].reachedMaxTasks() {
+			return m.newTasks[idx]
+		}
 	}
-	return true
+	return nil
 }
 
 func (m *Master) requeueFirstTask() {
@@ -166,7 +169,7 @@ func (m *Master) slotsAvailable() bool {
 	return false
 }
 
-func (m *Master) scheduleTask() string {
+func (m *Master) scheduleTask(t *lib.Task) {
 	minResources := math.MaxInt64
 	var slaveIP string
 	for k, v := range m.instances {
@@ -174,5 +177,10 @@ func (m *Master) scheduleTask() string {
 			slaveIP = k
 		}
 	}
-	return slaveIP
+	if _, err := SendTask(t, slaveIP); err != nil {
+		fmt.Println("Sending task to slave did not execute correctly.")
+	} else {
+		m.newTasks = m.newTasks[1:]
+		m.scheduledTasks = append(m.scheduledTasks, t)
+	}
 }
