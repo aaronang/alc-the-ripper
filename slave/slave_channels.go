@@ -22,6 +22,8 @@ func (s *Slave) password_found(Id int, password string) {
 	if ts != nil {
 		ts.Status = lib.PasswordFound
 		ts.Password = password
+	} else {
+		fmt.Println("ERROR:", "Id not found in Taskstatus")
 	}
 }
 
@@ -30,6 +32,8 @@ func (s *Slave) password_not_found(Id int) {
 	ts := s.taskStatusWithId(Id)
 	if ts != nil {
 		ts.Status = lib.PasswordNotFound
+	} else {
+		fmt.Println("ERROR:", "Id not found in Taskstatus")
 	}
 }
 
