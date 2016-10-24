@@ -36,7 +36,6 @@ func (bd *BruteDict) Close() {
 }
 
 func (bd *BruteDict) list(alph lib.Alphabet, start []byte, length int64) {
-	defer func() { recover() }()
 	len := len(start)
 	currentComb := lib.BytesToBigInt(alph, start)
 
