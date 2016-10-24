@@ -3,6 +3,7 @@ package master
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/aaronang/cong-the-ripper/lib"
@@ -37,7 +38,8 @@ func (m *Master) Run() {
 	http.HandleFunc(lib.HeartbeatPath, m.heartbeatHandler)
 	http.HandleFunc(lib.StatusPath, m.statusHandler)
 
-	go http.ListenAndServe(lib.Port, nil)
+	go http.ListenAndServe(lib.MasterPort(), nil)
+	fmt.Println("Master running on port", lib.MasterPort())
 
 	for {
 		select {
@@ -111,7 +113,7 @@ func TerminateSlaves(svc *ec2.EC2, instances []*ec2.Instance) (*ec2.TerminateIns
 
 // SendTask sends a task to a slave instance.
 func SendTask(t *lib.Task, i *ec2.Instance) (*http.Response, error) {
-	url := lib.Protocol + *i.PublicIpAddress + lib.Port + lib.TasksCreatePath
+	url := lib.Protocol + *i.PublicIpAddress + lib.SlavePort() + lib.TasksCreatePath
 	body, err := t.ToJSON()
 	if err != nil {
 		panic(err)
