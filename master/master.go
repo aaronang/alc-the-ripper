@@ -45,7 +45,10 @@ func (m *Master) Run() {
 	http.HandleFunc(lib.StatusPath, m.statusHandler)
 
 	go http.ListenAndServe(lib.Port, nil)
-	go m.runBackgroundScheduler()
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		m.scheduleChan <- true
+	}()
 
 	for {
 		select {
@@ -55,8 +58,10 @@ func (m *Master) Run() {
 			// (controller runs in the background and manages the number of instances)
 			// call load balancer function to schedule the tasks
 			// move tasks from `newTasks` to `scheduledTasks`
-			ip := m.scheduleTask()
-			SendTask(m.newTasks[0], ip)
+			if m.firstTaskIsValid() && m.slotsAvailable() {
+				ip := m.scheduleTask()
+				SendTask(m.newTasks[0], ip)
+			}
 		case job := <-m.jobsChan:
 			// split the job into tasks
 			// update `jobs` and `newTasks`
@@ -137,17 +142,6 @@ func instanceIds(instances []*ec2.Instance) []*string {
 	return instanceIds
 }
 
-// runBackgroundScheduler checks every time interval if there is a slave
-// available.
-func (m *Master) runBackgroundScheduler() {
-	for {
-		if m.firstTaskIsValid() {
-			m.scheduleWhenSlotsAvailable()
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-}
-
 func (m *Master) firstTaskIsValid() bool {
 	job := m.jobs[m.newTasks[0].JobID]
 	if job.reachedMaxTasks() {
@@ -163,13 +157,13 @@ func (m *Master) requeueFirstTask() {
 	m.newTasks = append(m.newTasks, t)
 }
 
-func (m *Master) scheduleWhenSlotsAvailable() {
+func (m *Master) slotsAvailable() bool {
 	for _, i := range m.instances {
 		if len(i.tasks) < i.maxTasks {
-			m.scheduleChan <- true
-			break
+			return true
 		}
 	}
+	return false
 }
 
 func (m *Master) scheduleTask() string {
