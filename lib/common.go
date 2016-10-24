@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"math/big"
+	"os"
 )
 
 // Global configuration
 const (
-	Port     = ":8080"
 	Protocol = "http://"
 
 	BodyType = "application/json"
@@ -28,6 +28,20 @@ const (
 
 	AWSRegion = "eu-west-1"
 )
+
+func MasterPort() string {
+	if os.Getenv("MASTERPORT") != "" {
+		return ":" + os.Getenv("MASTERPORT")
+	}
+	return ":8080"
+}
+
+func SlavePort() string {
+	if os.Getenv("SLAVEPORT") != "" {
+		return ":" + os.Getenv("SLAVEPORT")
+	}
+	return ":8080"
+}
 
 type Heartbeat struct {
 	SlaveId    string // aws.Instance.InstanceId

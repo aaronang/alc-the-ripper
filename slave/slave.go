@@ -20,5 +20,5 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 
 func Run() {
 	http.HandleFunc(lib.TasksCreatePath, taskHandler)
-	http.ListenAndServe(lib.Port, nil)
+	http.ListenAndServe(lib.SlavePort(), nil)
 }
