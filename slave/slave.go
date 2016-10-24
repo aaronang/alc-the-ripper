@@ -37,13 +37,14 @@ func (s *Slave) Run() {
 	for {
 		select {
 		case task := <-s.addTaskChan:
-			addTask(task, s)
+			s.addTask(task)
+			go s.Execute(task)
 
 		case msg := <-s.successChan:
-			password_found(msg.taskID, msg.password, s)
+			s.password_found(msg.taskID, msg.password)
 
 		case msg := <-s.failChan:
-			password_not_found(msg.taskID, s)
+			s.password_not_found(msg.taskID)
 		}
 	}
 }
@@ -56,5 +57,4 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slaveInstance.addTaskChan <- t
-	go Execute(t, &slaveInstance)
 }

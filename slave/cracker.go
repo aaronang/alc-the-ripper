@@ -9,7 +9,7 @@ import (
 	"github.com/aaronang/cong-the-ripper/slave/hasher"
 )
 
-func Execute(task lib.Task, slave *Slave) {
+func (slave *Slave) Execute(task lib.Task) {
 	bd := brutedict.New(&task)
 	digest, _ := b64.StdEncoding.DecodeString(task.Digest)
 	var hasher hasher.Hasher = hasher.Pbkdf2{} // Can be swapped with other hashing algorithms
