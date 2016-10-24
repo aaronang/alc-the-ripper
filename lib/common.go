@@ -34,10 +34,19 @@ type Heartbeat struct {
 	TaskStatus []TaskStatus
 }
 
+// Alphabet
+type Status int
+
+const (
+	Running Status = iota
+	PasswordFound
+	PasswordNotFound
+)
+
 type TaskStatus struct {
 	Id       int
 	JobId    int
-	Done     bool
+	Status   Status
 	Password string
 	Progress []byte // State of permutation
 }

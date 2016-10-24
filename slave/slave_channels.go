@@ -10,7 +10,7 @@ func addTask(task lib.Task, s *Slave) {
 	taskStatus := lib.TaskStatus{
 		Id:       task.ID,
 		JobId:    task.JobID,
-		Done:     false,
+		Status:   lib.Running,
 		Progress: task.Start,
 	}
 	s.heartbeat.TaskStatus = append(s.heartbeat.TaskStatus, taskStatus)
@@ -20,7 +20,7 @@ func password_found(Id int, password string, s *Slave) {
 	fmt.Println("Found password: " + password)
 	ts := taskStatusWithId(Id, s)
 	if ts != nil {
-		ts.Done = true
+		ts.Status = lib.PasswordFound
 		ts.Password = password
 	}
 }
@@ -29,7 +29,7 @@ func password_not_found(Id int, s *Slave) {
 	fmt.Println("Password not found")
 	ts := taskStatusWithId(Id, s)
 	if ts != nil {
-		ts.Done = true
+		ts.Status = lib.PasswordNotFound
 	}
 }
 

@@ -6,5 +6,5 @@ type CrackerSuccess struct {
 }
 
 type CrackerFail struct {
-	taskID   int
+	taskID int
 }
