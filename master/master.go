@@ -15,8 +15,7 @@ import (
 
 type slave struct {
 	tasks    []*lib.Task
-	maxTasks int
-	// TODO others
+	maxSlots int
 }
 
 type scheduler interface {
@@ -24,15 +23,25 @@ type scheduler interface {
 }
 
 type Master struct {
-	instances      map[string]slave
-	jobs           map[int]*job
-	jobsChan       chan lib.Job
-	heartbeatChan  chan lib.Heartbeat
-	statusChan     chan chan string // dummy
-	newTasks       []*lib.Task
-	scheduledTasks []*lib.Task
-	controllerChan chan string // dummy
-	scheduleChan   chan bool   // channel to instruct the main loop to schedule tasks
+	instances        map[string]slave
+	jobs             map[int]*job
+	jobsChan         chan lib.Job
+	heartbeatChan    chan lib.Heartbeat
+	statusChan       chan chan string // dummy
+	newTasks         []*lib.Task
+	scheduledTasks   []*lib.Task
+	controllerTicker *time.Ticker
+	scheduleChan     chan bool // channel to instruct the main loop to schedule tasks
+	controller       controller
+}
+
+type controller struct {
+	dt       time.Duration
+	kp       float64
+	kd       float64
+	ki       float64
+	prevErr  float64
+	integral float64
 }
 
 func Init() Master {
@@ -47,13 +56,18 @@ func (m *Master) Run() {
 
 	go http.ListenAndServe(lib.Port, nil)
 	go func() {
-		// TODO Test how this performs when a lot of tasks get submitted.
+		// TODO test how this performs when a lot of tasks get submitted.
 		time.Sleep(time.Duration(100/len(m.newTasks)) * time.Millisecond)
 		m.scheduleChan <- true
 	}()
 
+	m.controllerTicker = time.NewTicker(m.controller.dt)
+
 	for {
 		select {
+		case <-m.controllerTicker.C:
+			// run one iteration of the controller
+			m.runController()
 		case <-m.scheduleChan:
 			// we shedule the tasks when something is in this channel
 			// give the controller new data
@@ -61,8 +75,8 @@ func (m *Master) Run() {
 			// call load balancer function to schedule the tasks
 			// move tasks from `newTasks` to `scheduledTasks`
 			if m.slotsAvailable() {
-				if tidx := m.getTaskToSchedule(); tidx != -1 {
-					m.scheduleTask(tidx)
+				if tIdx := m.getTaskToSchedule(); tIdx != -1 {
+					m.scheduleTask(tIdx)
 				}
 			}
 		case job := <-m.jobsChan:
@@ -156,14 +170,14 @@ func (m *Master) getTaskToSchedule() int {
 
 func (m *Master) slotsAvailable() bool {
 	for _, i := range m.instances {
-		if len(i.tasks) < i.maxTasks {
+		if len(i.tasks) < i.maxSlots {
 			return true
 		}
 	}
 	return false
 }
 
-func (m *Master) scheduleTask(tidx int) {
+func (m *Master) scheduleTask(tIdx int) {
 	minResources := math.MaxInt64
 	var slaveIP string
 	for k, v := range m.instances {
@@ -171,10 +185,52 @@ func (m *Master) scheduleTask(tidx int) {
 			slaveIP = k
 		}
 	}
-	if _, err := SendTask(m.newTasks[tidx], slaveIP); err != nil {
+	// NOTE: if SendTask takes too long then it may block the main loop
+	if _, err := SendTask(m.newTasks[tIdx], slaveIP); err != nil {
 		fmt.Println("Sending task to slave did not execute correctly.")
 	} else {
-		m.scheduledTasks = append(m.scheduledTasks, m.newTasks[tidx])
-		m.newTasks = append(m.newTasks[:tidx], m.newTasks[tidx+1:]...)
+		m.scheduledTasks = append(m.scheduledTasks, m.newTasks[tIdx])
+		m.newTasks = append(m.newTasks[:tIdx], m.newTasks[tIdx+1:]...)
 	}
+}
+
+func (m *Master) countTotalSlots() int {
+	cnt := 0
+	for _, i := range m.instances {
+		cnt += i.maxSlots
+	}
+	return cnt
+}
+
+func (m *Master) maxSlots() int {
+	// TODO
+	return 20 * 2
+}
+
+func (m *Master) countRequiredSlots() int {
+	cnt := len(m.scheduledTasks)
+	cnt += len(m.newTasks)
+	if cnt > m.maxSlots() {
+		return m.maxSlots()
+	}
+	return cnt
+}
+
+// runController runs one iteration
+func (m *Master) runController() float64 {
+	err := float64(m.countRequiredSlots() - m.countTotalSlots())
+
+	dt := m.controller.dt.Seconds()
+	m.controller.integral = m.controller.integral + err*dt
+	derivative := (err - m.controller.prevErr) / dt
+	output := m.controller.kp*err +
+		m.controller.ki*m.controller.integral +
+		m.controller.kd*derivative
+	m.controller.prevErr = err
+
+	return output
+}
+
+func (m *Master) killSlaves() {
+
 }
