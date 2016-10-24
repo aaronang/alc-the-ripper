@@ -61,8 +61,8 @@ func (m *Master) Run() {
 			// call load balancer function to schedule the tasks
 			// move tasks from `newTasks` to `scheduledTasks`
 			if m.slotsAvailable() {
-				if task := m.getTaskToSchedule(); task != nil {
-					m.scheduleTask(m.newTasks[0])
+				if tidx := m.getTaskToSchedule(); tidx != -1 {
+					m.scheduleTask(tidx)
 				}
 			}
 		case job := <-m.jobsChan:
@@ -145,19 +145,13 @@ func instanceIds(instances []*ec2.Instance) []*string {
 	return instanceIds
 }
 
-func (m *Master) getTaskToSchedule() *lib.Task {
+func (m *Master) getTaskToSchedule() int {
 	for idx, t := range m.newTasks {
 		if !m.jobs[t.JobID].reachedMaxTasks() {
-			return m.newTasks[idx]
+			return idx
 		}
 	}
-	return nil
-}
-
-func (m *Master) requeueFirstTask() {
-	t := m.newTasks[0]
-	m.newTasks = m.newTasks[1:]
-	m.newTasks = append(m.newTasks, t)
+	return -1
 }
 
 func (m *Master) slotsAvailable() bool {
@@ -169,7 +163,7 @@ func (m *Master) slotsAvailable() bool {
 	return false
 }
 
-func (m *Master) scheduleTask(t *lib.Task) {
+func (m *Master) scheduleTask(tidx int) {
 	minResources := math.MaxInt64
 	var slaveIP string
 	for k, v := range m.instances {
@@ -177,10 +171,10 @@ func (m *Master) scheduleTask(t *lib.Task) {
 			slaveIP = k
 		}
 	}
-	if _, err := SendTask(t, slaveIP); err != nil {
+	if _, err := SendTask(m.newTasks[tidx], slaveIP); err != nil {
 		fmt.Println("Sending task to slave did not execute correctly.")
 	} else {
-		m.newTasks = m.newTasks[1:]
-		m.scheduledTasks = append(m.scheduledTasks, t)
+		m.scheduledTasks = append(m.scheduledTasks, m.newTasks[tidx])
+		m.newTasks = append(m.newTasks[:tidx], m.newTasks[tidx+1:]...)
 	}
 }
