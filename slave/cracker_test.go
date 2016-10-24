@@ -1,6 +1,7 @@
 package slave
 
 import (
+	b64 "encoding/base64"
 	"testing"
 	"time"
 
@@ -15,9 +16,11 @@ func Setup() {
 	slave.successChan = make(chan CrackerSuccess)
 	slave.failChan = make(chan CrackerFail)
 
+	digestBytes, _ := b64.StdEncoding.DecodeString("WTpSrbQAR8IMSK9uMoOQEXfKy+2FojN8yEz+T1n21uE=") //cong
+
 	job := lib.Job{
 		Salt:      []byte("salty"),
-		Digest:    "WTpSrbQAR8IMSK9uMoOQEXfKy+2FojN8yEz+T1n21uE=", // cong
+		Digest:    digestBytes,
 		KeyLen:    22,
 		Iter:      6400,
 		Alphabet:  lib.AlphaLower,
