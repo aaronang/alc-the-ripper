@@ -8,7 +8,7 @@ import (
 
 type job struct {
 	lib.Job
-	id           int
+	id           int64
 	tasks        []*lib.Task
 	runningTasks int
 	maxTasks     int
@@ -18,20 +18,27 @@ func (j *job) reachedMaxTasks() bool {
 	return j.runningTasks < j.maxTasks
 }
 
-// SplitJob attempts to split a cracking job into equal sized tasks regardless of the job
+// splitJob attempts to split a cracking job into equal sized tasks regardless of the job
 // the taskSize represents the number of brute force iterations
-func SplitJob(job *job, taskSize int64) []lib.Task {
-	var tasks []lib.Task
-	cands, lens := chunkCandidates(job.Alphabet, job.KeyLen, taskSize)
+func (j *job) splitJob(taskSize int64) {
+	if taskSize < int64(j.Iter) {
+		panic("taskSize cannot be lower than job.Iter")
+	}
+
+	// adjust taskSize depending on the PBKDF2 rounds
+	actualTaskSize := taskSize / int64(j.Iter)
+
+	var tasks []*lib.Task
+	cands, lens := chunkCandidates(j.Alphabet, j.KeyLen, actualTaskSize)
 	for i := range cands {
-		tasks = append(tasks, lib.Task{
-			Job:     job.Job,
-			JobID:   job.id,
-			ID:      i,
+		tasks = append(tasks, &lib.Task{
+			Job:     j.Job,
+			JobID:   j.id,
+			ID:      int64(i),
 			Start:   cands[i],
 			TaskLen: lens[i]})
 	}
-	return tasks
+	j.tasks = tasks
 }
 
 // chunkCandidates takes a character set and the required length l and splits to chunks of size n

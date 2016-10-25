@@ -46,8 +46,8 @@ type TaskStatus struct {
 // permutation to stop.
 type Task struct {
 	Job
-	JobID   int
-	ID      int
+	JobID   int64
+	ID      int64
 	Start   []byte
 	TaskLen int64
 }
