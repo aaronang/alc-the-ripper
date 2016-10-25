@@ -1,6 +1,5 @@
 package master
 
-/*
 import (
 	"testing"
 
@@ -32,18 +31,11 @@ func TestCreateAndTerminateSlave(t *testing.T) {
 
 func TestSendTask(t *testing.T) {
 	ta := &lib.Task{
-		ID:        1,
-		JobID:     1,
-		Algorithm: "PBKDF2",
-		Salt:      "salty",
-		Digest:    "$pbkdf2-sha256$6400$0ZrzXitFSGltTQnBWOsdAw$Y11AchqV4b0sUisdZd0Xr97KWoymNE0LNNrnEgY4H9M",
-		CharSet:   "alphanumeric",
-		Length:    22,
-		Start:     "0",
-		End:       "0",
+		JobID:   123,
+		Start:   []byte("aaaa"),
+		TaskLen: 12,
 	}
 	if _, err := SendTask(ta, "localhost"); err != nil {
 		t.Error("Task did not send correctly", err)
 	}
 }
-*/
