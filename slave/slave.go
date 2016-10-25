@@ -39,7 +39,7 @@ func (s *Slave) Run() {
 		select {
 		case task := <-s.addTaskChan:
 			s.addTask(task)
-			go s.Execute(task)
+			go Execute(task, s.successChan, s.failChan)
 
 		case msg := <-s.successChan:
 			s.password_found(msg.taskID, msg.password)

@@ -38,7 +38,7 @@ func Setup() {
 
 func TestHit(t *testing.T) {
 	Setup()
-	go slave.Execute(task)
+	go Execute(task, slave.successChan, slave.failChan)
 	select {
 	case <-time.After(time.Second * 10):
 	case <-slave.failChan:
@@ -50,7 +50,7 @@ func TestHit(t *testing.T) {
 func TestMiss(t *testing.T) {
 	Setup()
 	task.TaskLen = 1
-	go slave.Execute(task)
+	go Execute(task, slave.successChan, slave.failChan)
 	select {
 	case <-slave.successChan:
 		t.Fail()
