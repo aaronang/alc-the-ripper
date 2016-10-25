@@ -261,7 +261,7 @@ func TestEqInts(a, b []int) bool {
 	return true
 }
 
-func TestEqByteArray(a, b []byte) bool {
+func TestEqBytes(a, b []byte) bool {
 
 	if a == nil && b == nil {
 		return true
