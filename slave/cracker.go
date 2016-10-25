@@ -8,7 +8,7 @@ import (
 
 func Execute(task lib.Task, successChan chan CrackerSuccess, failChan chan CrackerFail) {
 	bd := brutedict.New(&task)
-	var hasher hasher.Hasher = hasher.Pbkdf2{} // Can be swapped with other hashing algorithms
+	var hasher hasher.Hasher = new(hasher.Pbkdf2) // Can be swapped with other hashing algorithms
 
 	for {
 		if candidate := bd.Next(); candidate != nil {

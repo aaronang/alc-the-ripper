@@ -11,6 +11,6 @@ import (
 type Pbkdf2 struct {
 }
 
-func (p Pbkdf2) Hash(candidate []byte, task *lib.Task) []byte {
+func (p *Pbkdf2) Hash(candidate []byte, task *lib.Task) []byte {
 	return pbkdf2.Key(candidate, task.Salt, task.Iter, sha256.Size, sha256.New)
 }
