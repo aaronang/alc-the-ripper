@@ -10,12 +10,14 @@ import (
 
 	"github.com/aaronang/cong-the-ripper/lib"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
 type slave struct {
 	tasks    []*lib.Task
 	maxSlots int
+	instance *ec2.Instance
 }
 
 type scheduler interface {
@@ -23,6 +25,7 @@ type scheduler interface {
 }
 
 type Master struct {
+	svc              *ec2.EC2 // safe to be used concurrently
 	instances        map[string]slave
 	jobs             map[int]*job
 	jobsChan         chan lib.Job
@@ -45,8 +48,23 @@ type controller struct {
 }
 
 func Init() Master {
-	// TODO initialise Master correctly
-	return Master{}
+	m := Master{
+		svc: newEC2(),
+	}
+
+	// create one slave on startup
+	s, err := CreateSlaves(m.svc, 1)
+	if err != nil {
+		panic(err)
+	}
+
+	m.instances[*s[0].PublicIpAddress] = slave{
+		maxSlots: 2,
+		instance: s[0],
+	}
+	fmt.Println("Initialised master.")
+	fmt.Println(m)
+	return m
 }
 
 func (m *Master) Run() {
@@ -87,35 +105,31 @@ func (m *Master) Run() {
 			// update task statuses
 			// check whether a job has completed all its tasks
 			_ = beat
-		case c := <-m.statusChan:
+		case s := <-m.statusChan:
 			// status handler gives us a channel,
 			// we write the status into the channel and the the handler "serves" the result
-			_ = c
+			_ = s
 		}
 	}
 }
 
-func (m *Master) jobsHandler(w http.ResponseWriter, r *http.Request) {
-	var j lib.Job
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&j); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	m.jobsChan <- j
-}
-
-func (m *Master) heartbeatHandler(w http.ResponseWriter, r *http.Request) {
-	var beat lib.Heartbeat
-	// TODO parse json and sends the results directly to the  main loop
-	m.heartbeatChan <- beat
-}
-
-func (m *Master) statusHandler(w http.ResponseWriter, r *http.Request) {
-	resultsChan := make(chan string)
-	m.statusChan <- resultsChan
-	<-resultsChan
-	// TODO read the results and serve status page
+func instanceManager(svc *ec2.EC2, createdChan chan int, terminatedChan chan int, sentChan chan int) (chan int, chan int, chan int) {
+	createChan := make(chan int)
+	terminateChan := make(chan int)
+	sendChan := make(chan int)
+	go func() {
+		for {
+			select {
+			case c := <-createChan:
+				_ = c
+			case c := <-terminateChan:
+				_ = c
+			case c := <-sendChan:
+				_ = c
+			}
+		}
+	}()
+	return createChan, terminateChan, sendChan
 }
 
 // CreateSlaves creates a new slave instance.
@@ -149,6 +163,39 @@ func SendTask(t *lib.Task, ip string) (*http.Response, error) {
 		panic(err)
 	}
 	return http.Post(url, lib.BodyType, bytes.NewBuffer(body))
+}
+
+func newEC2() *ec2.EC2 {
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(lib.AWSRegion)},
+	)
+	if err != nil {
+		panic(err)
+	}
+	return ec2.New(sess)
+}
+
+func (m *Master) jobsHandler(w http.ResponseWriter, r *http.Request) {
+	var j lib.Job
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&j); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	m.jobsChan <- j
+}
+
+func (m *Master) heartbeatHandler(w http.ResponseWriter, r *http.Request) {
+	var beat lib.Heartbeat
+	// TODO parse json and sends the results directly to the  main loop
+	m.heartbeatChan <- beat
+}
+
+func (m *Master) statusHandler(w http.ResponseWriter, r *http.Request) {
+	resultsChan := make(chan string)
+	m.statusChan <- resultsChan
+	<-resultsChan
+	// TODO read the results and serve status page
 }
 
 func instanceIds(instances []*ec2.Instance) []*string {
@@ -232,5 +279,5 @@ func (m *Master) runController() float64 {
 }
 
 func (m *Master) killSlaves() {
-
+	// TODO
 }

@@ -6,8 +6,6 @@ import (
 	"github.com/aaronang/cong-the-ripper/lib"
 )
 
-// NOTE: consider using math/big for some of the operations in this package
-
 type job struct {
 	lib.Job
 	id           int
