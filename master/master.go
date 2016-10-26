@@ -17,21 +17,19 @@ import (
 )
 
 type Master struct {
-	svc                   *ec2.EC2 // safe to be used concurrently
-	instances             map[string]slave
-	jobs                  map[int64]*job
-	jobsChan              chan lib.Job
-	heartbeatChan         chan lib.Heartbeat
-	heartbeatTicker       *time.Ticker
-	statusChan            chan chan string // dummy
-	newTasks              []*lib.Task
-	scheduledTasks        []*lib.Task
-	scheduleTicker        *time.Ticker // channel to instruct the main loop to schedule tasks
-	controllerTicker      *time.Ticker
-	controller            controller
-	createInstanceChan    chan<- int
-	terminateInstanceChan chan<- []*ec2.Instance
-	taskSize              int64
+	svc              *ec2.EC2 // safe to be used concurrently
+	instances        map[string]slave
+	jobs             map[int64]*job
+	jobsChan         chan lib.Job
+	heartbeatChan    chan lib.Heartbeat
+	heartbeatTicker  *time.Ticker
+	statusChan       chan chan statusSummary
+	newTasks         []*lib.Task
+	scheduledTasks   []*lib.Task
+	scheduleTicker   *time.Ticker // channel to instruct the main loop to schedule tasks
+	controllerTicker *time.Ticker
+	controller       controller
+	taskSize         int64
 }
 
 type slave struct {
@@ -44,13 +42,6 @@ type scheduler interface {
 	schedule(map[string]slave) string
 }
 
-/*
-type sendTaskMsg struct {
-	addr string
-	task lib.Task
-}
-*/
-
 type controller struct {
 	dt       time.Duration
 	kp       float64
@@ -58,6 +49,11 @@ type controller struct {
 	ki       float64
 	prevErr  float64
 	integral float64
+}
+
+type statusSummary struct {
+	instances map[string]slave // TODO *ec2.Instance probably won't serialise
+	jobs      map[int64]*job
 }
 
 func Init() Master {
@@ -125,12 +121,13 @@ func (m *Master) Run() {
 			m.updateOnHeartbeat(beat)
 		case s := <-m.statusChan:
 			// status handler gives us a channel,
-			// we write the status into the channel and the the handler "serves" the result
+			// we write the status into the channel and the the handler serves the result
 			_ = s
 		}
 	}
 }
 
+/*
 func startInstanceManager(svc *ec2.EC2) (chan<- int, chan<- []*ec2.Instance) {
 	// only this function can read these channels
 	createChan := make(chan int)
@@ -163,6 +160,7 @@ func startInstanceManager(svc *ec2.EC2) (chan<- int, chan<- []*ec2.Instance) {
 	}()
 	return createChan, terminateChan
 }
+*/
 
 // createSlaves creates a new slave instance.
 func createSlaves(svc *ec2.EC2, count int64) ([]*ec2.Instance, error) {
@@ -220,10 +218,6 @@ func (m *Master) initAWS() {
 		maxSlots: 2,
 		instance: s[0],
 	}
-
-	createInstanceChan, terminateInstanceChan := startInstanceManager(m.svc)
-	m.createInstanceChan = createInstanceChan
-	m.terminateInstanceChan = terminateInstanceChan
 }
 
 // NOTE: in the handlers, modifying fields `m` other than the channels may cause race condition
@@ -244,7 +238,7 @@ func (m *Master) heartbeatHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *Master) statusHandler(w http.ResponseWriter, r *http.Request) {
-	resultsChan := make(chan string)
+	resultsChan := make(chan statusSummary)
 	m.statusChan <- resultsChan
 	<-resultsChan
 	// TODO read the results and serve status page
@@ -337,9 +331,46 @@ func (m *Master) runController() {
 
 func (m *Master) adjustInstanceCount(n int) {
 	if n > 0 {
-		m.createInstanceChan <- n
+		go func() {
+			_, err := createSlaves(m.svc, int64(n))
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Printf("%v instances created successfully\n", n)
+				// no need to report back to the master loop
+				// because it should start receiving heartbeat messages
+			}
+		}()
 	} else {
-		m.killSlaves(-n)
+		// negate n to represent the (positive) number of instances to kill
+		n := -n
+		if n < 0 {
+			panic("n cannot be negative")
+		} else if n == 0 {
+			fmt.Println("n is 0 in killSlaves")
+			return
+		}
+
+		// kills n least loaded slaves, the killed slaves may have unfinished tasks
+		// but the master should detect missing heartbeats and restart the tasks
+		slaves := make([]slave, len(m.instances))
+		var i int
+		for _, v := range m.instances {
+			slaves[i] = v
+			i++
+		}
+
+		sort.Sort(byTaskCount(slaves))
+		go func() {
+			_, err := terminateSlaves(m.svc, slavesToInstances(slaves[:n]))
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Printf("%v instances terminated successfully", n)
+				// again, no need to report success/failure
+				// because heartbeat messages will stop
+			}
+		}()
 	}
 }
 
@@ -355,28 +386,6 @@ func (a byTaskCount) Swap(i, j int) {
 
 func (a byTaskCount) Less(i, j int) bool {
 	return len(a[i].tasks) < len(a[j].tasks)
-}
-
-// killSlaves kills n least loaded slaves
-// the killed slaves may have unfinished tasks
-// the master should detect missing heartbeats and restart the tasks
-func (m *Master) killSlaves(n int) {
-	if n < 0 {
-		panic("n cannot be negative")
-	} else if n == 0 {
-		fmt.Println("n is 0 in killSlaves")
-		return
-	}
-
-	slaves := make([]slave, len(m.instances))
-	var i int
-	for _, v := range m.instances {
-		slaves[i] = v
-		i++
-	}
-
-	sort.Sort(byTaskCount(slaves))
-	m.terminateInstanceChan <- slavesToInstances(slaves[0 : n-1])
 }
 
 func slavesToInstances(slaves []slave) []*ec2.Instance {

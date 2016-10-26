@@ -19,12 +19,12 @@ func TestCreateAndTerminateSlave(t *testing.T) {
 
 	svc := ec2.New(sess)
 
-	instances, err := CreateSlaves(svc, 3)
+	instances, err := createSlaves(svc, 3)
 	if err != nil {
 		t.Error("Could not create instance", err)
 	}
 
-	if _, err = TerminateSlaves(svc, instances); err != nil {
+	if _, err = terminateSlaves(svc, instances); err != nil {
 		t.Error("Could not terminate instance", err)
 	}
 }
@@ -35,7 +35,7 @@ func TestSendTask(t *testing.T) {
 		Start:   []byte("aaaa"),
 		TaskLen: 12,
 	}
-	if _, err := SendTask(ta, "localhost"); err != nil {
+	if _, err := sendTask(ta, "localhost"); err != nil {
 		t.Error("Task did not send correctly", err)
 	}
 }
