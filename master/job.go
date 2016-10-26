@@ -23,14 +23,14 @@ func (j *job) reachedMaxTasks() bool {
 
 func (j *job) increaseRunningTasks() {
 	if j.runningTasks >= len(j.tasks) || j.runningTasks >= j.maxTasks {
-		log.Println("Trying to run more tasks than possible or allowed.")
+		log.Fatalln("Trying to run more tasks than possible or allowed.")
 	}
 	j.runningTasks = j.runningTasks + 1
 }
 
 func (j *job) decreaseRunningTasks() {
 	if j.runningTasks <= 0 {
-		log.Println("Running tasks can never be lower than zero.")
+		log.Fatalln("Running tasks can never be lower than zero.")
 	}
 	j.runningTasks = j.runningTasks - 1
 }
