@@ -7,6 +7,8 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"os"
+	"os/signal"
 	"sort"
 	"time"
 
@@ -30,6 +32,7 @@ type Master struct {
 	controllerTicker *time.Ticker
 	controller       controller
 	taskSize         int64
+	quit             chan bool
 }
 
 type slave struct {
@@ -56,33 +59,63 @@ type statusSummary struct {
 	jobs      map[int64]*job
 }
 
+// Init creates the master object
 func Init() Master {
 	// set some defaults
 	return Master{
+		svc:              nil, // initialised in Run
+		instances:        make(map[string]slave),
+		jobs:             make(map[int64]*job),
+		jobsChan:         make(chan lib.Job),
+		heartbeatChan:    make(chan lib.Heartbeat),
+		heartbeatTicker:  nil, // initialised in Run
+		statusChan:       make(chan chan statusSummary),
+		newTasks:         make([]*lib.Task, 0),
+		scheduledTasks:   make([]*lib.Task, 0),
+		scheduleTicker:   nil, // initialised in Run
+		controllerTicker: nil, //initialised in Run
 		controller: controller{
 			dt:       time.Minute * 2,
 			kp:       1,
-			kd:       0.5,
+			kd:       0,
 			ki:       0,
 			prevErr:  0,
 			integral: 0,
 		},
 		taskSize: 6400 * 1000 * 1000,
+		quit:     make(chan bool),
 	}
 }
 
+// Run starts the master
 func (m *Master) Run() {
+	// initialise the nils
 	m.initAWS()
-
-	http.HandleFunc(lib.JobsCreatePath, m.jobsHandler)
-	http.HandleFunc(lib.HeartbeatPath, m.heartbeatHandler)
-	http.HandleFunc(lib.StatusPath, m.statusHandler)
-	go http.ListenAndServe(lib.Port, nil)
-
 	m.controllerTicker = time.NewTicker(m.controller.dt)
 	m.heartbeatTicker = time.NewTicker(time.Second)
 	// TODO test how this performs when a lot of tasks get submitted.
-	m.scheduleTicker = time.NewTicker(time.Duration(100/len(m.newTasks)) * time.Millisecond)
+	m.scheduleTicker = time.NewTicker(100 * time.Millisecond)
+
+	// setup and run http
+	http.HandleFunc(lib.JobsCreatePath, m.jobsHandler)
+	http.HandleFunc(lib.HeartbeatPath, m.heartbeatHandler)
+	http.HandleFunc(lib.StatusPath, m.statusHandler)
+	go func() {
+		e := http.ListenAndServe(lib.Port, nil)
+		if e != nil {
+			fmt.Println(e)
+		}
+	}()
+
+	// send message to m.quit on interrupt
+	go func() {
+		sigchan := make(chan os.Signal, 10)
+		signal.Notify(sigchan, os.Interrupt)
+		<-sigchan
+		m.quit <- true
+	}()
+
+	// main loop
 	for {
 		select {
 		case <-m.controllerTicker.C:
@@ -123,44 +156,18 @@ func (m *Master) Run() {
 			// status handler gives us a channel,
 			// we write the status into the channel and the the handler serves the result
 			_ = s
+		case <-m.quit:
+			// release all slaves
+			fmt.Println("Master stopping...")
+			_, err := terminateSlaves(m.svc, slavesMapToInstances(m.instances))
+			if err != nil {
+				fmt.Println("Failed to terminate slaves on interrupt")
+				fmt.Println(err)
+			}
+			os.Exit(0)
 		}
 	}
 }
-
-/*
-func startInstanceManager(svc *ec2.EC2) (chan<- int, chan<- []*ec2.Instance) {
-	// only this function can read these channels
-	createChan := make(chan int)
-	terminateChan := make(chan []*ec2.Instance)
-	go func() {
-		for {
-			select {
-			case c := <-createChan:
-				_, err := createSlaves(svc, int64(c))
-				if err != nil {
-					fmt.Println(err)
-				} else {
-					fmt.Printf("%v instances created successfully\n", c)
-					// no need to report back to the master loop
-					// because it should start receiving heartbeat messages
-				}
-			case c := <-terminateChan:
-				_, err := terminateSlaves(svc, c)
-				if err != nil {
-					fmt.Println(err)
-				} else {
-					fmt.Printf("%v instances terminated successfully", len(c))
-					// again, no need to report success/failure
-					// because heartbeat messages will stop
-				}
-			}
-			// NOTE: we may need to put sendTask here too if it's blocking the main loop too often
-			// e.g. case c := <- sendTaskChan
-		}
-	}()
-	return createChan, terminateChan
-}
-*/
 
 // createSlaves creates a new slave instance.
 func createSlaves(svc *ec2.EC2, count int64) ([]*ec2.Instance, error) {
@@ -172,6 +179,7 @@ func createSlaves(svc *ec2.EC2, count int64) ([]*ec2.Instance, error) {
 		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
 			Arn: aws.String(lib.SlaveARN),
 		},
+		SecurityGroupIds: []*string{aws.String("sg-646fbb02")},
 	}
 	resp, err := svc.RunInstances(params)
 	return resp.Instances, err
@@ -211,12 +219,59 @@ func (m *Master) initAWS() {
 	// create one slave on startup
 	s, err := createSlaves(m.svc, 1)
 	if err != nil {
+		fmt.Println("Failed to create slave")
 		panic(err)
 	}
 
-	m.instances[*s[0].PublicIpAddress] = slave{
-		maxSlots: 2,
-		instance: s[0],
+	ip := getPublicIP(m.svc, s[0])
+	// probably not necessary becase
+	if ip != nil {
+		m.instances[*ip] = slave{
+			maxSlots: lib.MaxSlotsPerInstance,
+			instance: s[0],
+		}
+	}
+}
+
+func getPublicIP(svc *ec2.EC2, instance *ec2.Instance) *string {
+	params := ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("instance-state-name"),
+				Values: []*string{
+					aws.String("pending"),
+					aws.String("running"),
+				},
+			},
+		},
+		InstanceIds: []*string{
+			instance.InstanceId,
+		},
+	}
+
+	var i int
+	for {
+		res, err := svc.DescribeInstances(&params)
+		fmt.Println("reservations", len(res.Reservations))
+
+		// ignore the error because we may try again
+		if err == nil &&
+			len(res.Reservations) == 1 &&
+			len(res.Reservations[0].Instances) == 1 {
+
+			fmt.Println(res.Reservations[0].Instances[0].State)
+			if res.Reservations[0].Instances[0].PublicIpAddress != nil {
+				fmt.Println("Found public IP")
+				return res.Reservations[0].Instances[0].PublicIpAddress
+			}
+
+		}
+		time.Sleep(10 * time.Second)
+		i++
+		if i > 12 {
+			fmt.Println("Unable to fine public IP")
+			return nil
+		}
 	}
 }
 
@@ -301,7 +356,7 @@ func (m *Master) countTotalSlots() int {
 
 func (m *Master) maxSlots() int {
 	// TODO do we set the manually or it's a property of AWS?
-	return 20 * 2
+	return 20 * lib.MaxSlotsPerInstance
 }
 
 func (m *Master) countRequiredSlots() int {
@@ -343,7 +398,9 @@ func (m *Master) adjustInstanceCount(n int) {
 		}()
 	} else {
 		// negate n to represent the (positive) number of instances to kill
+		// scale by the number of
 		n := -n
+		n = n / lib.MaxSlotsPerInstance
 		if n < 0 {
 			panic("n cannot be negative")
 		} else if n == 0 {
@@ -392,6 +449,15 @@ func slavesToInstances(slaves []slave) []*ec2.Instance {
 	res := make([]*ec2.Instance, len(slaves))
 	for i := range slaves {
 		res[i] = slaves[i].instance
+	}
+	return res
+}
+
+func slavesMapToInstances(slaves map[string]slave) []*ec2.Instance {
+	res := make([]*ec2.Instance, len(slaves))
+	i := 0
+	for _, v := range slaves {
+		res[i] = v.instance
 	}
 	return res
 }

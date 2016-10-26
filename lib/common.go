@@ -27,6 +27,9 @@ const (
 	MasterRole = "MasterTheRipper"
 
 	AWSRegion = "eu-west-1"
+
+	// TODO consider removing this constraint so that our system can be used in heterogeneous clusters
+	MaxSlotsPerInstance = 2
 )
 
 type Heartbeat struct {
