@@ -20,6 +20,14 @@ func (j *job) reachedMaxTasks() bool {
 	return j.runningTasks < j.maxTasks
 }
 
+func (j *job) increaseRunningTasks() {
+	j.runningTasks = j.runningTasks + 1
+}
+
+func (j *job) decreaseRunningTasks() {
+	j.runningTasks = j.runningTasks - 1
+}
+
 // SplitJob attempts to split a cracking job into equal sized tasks regardless of the job
 // the taskSize represents the number of brute force iterations
 func SplitJob(job *job, taskSize int64) []lib.Task {

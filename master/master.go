@@ -48,7 +48,7 @@ func (m *Master) Run() {
 	go http.ListenAndServe(lib.Port, nil)
 	go func() {
 		// TODO Test how this performs when a lot of tasks get submitted.
-		time.Sleep(time.Duration(100/len(m.newTasks)) * time.Millisecond)
+		time.Sleep(time.Duration(100/(len(m.newTasks)+1)) * time.Millisecond)
 		m.scheduleChan <- true
 	}()
 
@@ -60,9 +60,9 @@ func (m *Master) Run() {
 			// (controller runs in the background and manages the number of instances)
 			// call load balancer function to schedule the tasks
 			// move tasks from `newTasks` to `scheduledTasks`
-			if m.slotsAvailable() {
+			if slaveIP := m.slaveAvailable(); slaveIP != "" {
 				if tidx := m.getTaskToSchedule(); tidx != -1 {
-					m.scheduleTask(tidx)
+					m.scheduleTask(tidx, slaveIP)
 				}
 			}
 		case job := <-m.jobsChan:
@@ -154,26 +154,24 @@ func (m *Master) getTaskToSchedule() int {
 	return -1
 }
 
-func (m *Master) slotsAvailable() bool {
-	for _, i := range m.instances {
-		if len(i.tasks) < i.maxTasks {
-			return true
+func (m *Master) slaveAvailable() string {
+	minimumTasks := math.MaxInt64
+	var slaveIP string
+	for ip, i := range m.instances {
+		if assignedTasks := len(i.tasks); assignedTasks < minimumTasks && assignedTasks < i.maxTasks {
+			minimumTasks = assignedTasks
+			slaveIP = ip
 		}
 	}
-	return false
+	return slaveIP
 }
 
-func (m *Master) scheduleTask(tidx int) {
-	minResources := math.MaxInt64
-	var slaveIP string
-	for k, v := range m.instances {
-		if len(v.tasks) < minResources {
-			slaveIP = k
-		}
-	}
-	if _, err := SendTask(m.newTasks[tidx], slaveIP); err != nil {
+func (m *Master) scheduleTask(tidx int, ip string) {
+	if _, err := SendTask(m.newTasks[tidx], ip); err != nil {
 		fmt.Println("Sending task to slave did not execute correctly.")
 	} else {
+		job := m.jobs[m.newTasks[tidx].JobID]
+		job.increaseRunningTasks()
 		m.scheduledTasks = append(m.scheduledTasks, m.newTasks[tidx])
 		m.newTasks = append(m.newTasks[:tidx], m.newTasks[tidx+1:]...)
 	}
