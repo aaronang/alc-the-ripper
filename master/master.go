@@ -19,10 +19,6 @@ type slave struct {
 	// TODO others
 }
 
-type scheduler interface {
-	schedule(map[string]slave) string
-}
-
 type Master struct {
 	instances      map[string]slave
 	jobs           map[int]*job
