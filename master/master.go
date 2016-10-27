@@ -24,7 +24,6 @@ type Master struct {
 	jobs             map[int64]*job
 	jobsChan         chan lib.Job
 	heartbeatChan    chan lib.Heartbeat
-	heartbeatTicker  *time.Ticker
 	statusChan       chan chan statusSummary
 	newTasks         []*lib.Task
 	scheduledTasks   []*lib.Task
@@ -38,7 +37,7 @@ type Master struct {
 type slave struct {
 	tasks    []*lib.Task
 	maxSlots int
-	instance *ec2.Instance
+	instance *ec2.Instance // can't populate this easily
 }
 
 type scheduler interface {
@@ -68,7 +67,6 @@ func Init() Master {
 		jobs:             make(map[int64]*job),
 		jobsChan:         make(chan lib.Job),
 		heartbeatChan:    make(chan lib.Heartbeat),
-		heartbeatTicker:  nil, // initialised in Run
 		statusChan:       make(chan chan statusSummary),
 		newTasks:         make([]*lib.Task, 0),
 		scheduledTasks:   make([]*lib.Task, 0),
@@ -92,14 +90,13 @@ func (m *Master) Run() {
 	// initialise the nils
 	m.initAWS()
 	m.controllerTicker = time.NewTicker(m.controller.dt)
-	m.heartbeatTicker = time.NewTicker(time.Second)
 	// TODO test how this performs when a lot of tasks get submitted.
 	m.scheduleTicker = time.NewTicker(100 * time.Millisecond)
 
 	// setup and run http
-	http.HandleFunc(lib.JobsCreatePath, m.jobsHandler)
-	http.HandleFunc(lib.HeartbeatPath, m.heartbeatHandler)
-	http.HandleFunc(lib.StatusPath, m.statusHandler)
+	http.HandleFunc(lib.JobsCreatePath, makeJobsHandler(m.jobsChan))
+	http.HandleFunc(lib.HeartbeatPath, makeHeartbeatHandler(m.heartbeatChan))
+	http.HandleFunc(lib.StatusPath, makeStatusHandler(m.statusChan))
 	go func() {
 		e := http.ListenAndServe(lib.Port, nil)
 		if e != nil {
@@ -121,8 +118,6 @@ func (m *Master) Run() {
 		case <-m.controllerTicker.C:
 			// run one iteration of the controller
 			m.runController()
-		case <-m.heartbeatTicker.C:
-			// check for missed heartbeats and update data structure
 		case <-m.scheduleTicker.C:
 			// we shedule the tasks when something is in this channel
 			// (controller runs in the background and manages the number of instances)
@@ -275,32 +270,40 @@ func getPublicIP(svc *ec2.EC2, instance *ec2.Instance) *string {
 	}
 }
 
-// NOTE: in the handlers, modifying fields `m` other than the channels may cause race condition
-func (m *Master) jobsHandler(w http.ResponseWriter, r *http.Request) {
-	var j lib.Job
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&j); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+func makeJobsHandler(c chan lib.Job) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var j lib.Job
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&j); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		c <- j
 	}
-	m.jobsChan <- j
 }
 
-func (m *Master) heartbeatHandler(w http.ResponseWriter, r *http.Request) {
-	var beat lib.Heartbeat
-	// TODO parse json and sends the results directly to the main loop
-	m.heartbeatChan <- beat
+func makeHeartbeatHandler(c chan lib.Heartbeat) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var beat lib.Heartbeat
+		// TODO parse json and sends the results directly to the main loop
+		c <- beat
+	}
 }
 
-func (m *Master) statusHandler(w http.ResponseWriter, r *http.Request) {
-	resultsChan := make(chan statusSummary)
-	m.statusChan <- resultsChan
-	<-resultsChan
-	// TODO read the results and serve status page
+func makeStatusHandler(c chan chan statusSummary) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		resultsChan := make(chan statusSummary)
+		c <- resultsChan
+		<-resultsChan
+		// TODO read the results and serve status page
+	}
 }
 
 func (m *Master) updateOnHeartbeat(beat lib.Heartbeat) {
-	// TODO
+	// check whether slave already exist, if not create one
+	// create a goroutine for every slave that checks for missed hearbeats
+	// if a miss is detected then report to master to be handled
+	// update task statuses on every heartbeat
 }
 
 func instanceIds(instances []*ec2.Instance) []*string {
