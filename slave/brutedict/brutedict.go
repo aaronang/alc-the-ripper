@@ -35,7 +35,7 @@ func (bd *BruteDict) Close() {
 	close(bd.queue)
 }
 
-func (bd *BruteDict) list(alph lib.Alphabet, start []byte, length int64) {
+func (bd *BruteDict) list(alph lib.Alphabet, start []byte, length int) {
 	len := len(start)
 	currentComb := lib.BytesToBigInt(alph, start)
 

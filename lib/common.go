@@ -48,7 +48,7 @@ const (
 
 type TaskStatus struct {
 	Id       int
-	JobId    int64
+	JobId    int
 	Status   Status
 	Password string
 	Progress []byte // State of permutation
@@ -59,10 +59,10 @@ type TaskStatus struct {
 // permutation to stop.
 type Task struct {
 	Job
-	JobID   int64
+	JobID   int
 	ID      int
 	Start   []byte
-	TaskLen int64
+	TaskLen int
 }
 
 // ToJSON serializes a Task to JSON.

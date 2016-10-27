@@ -21,7 +21,7 @@ import (
 type Master struct {
 	svc              *ec2.EC2 // safe to be used concurrently
 	instances        map[string]slave
-	jobs             map[int64]*job
+	jobs             map[int]*job
 	jobsChan         chan lib.Job
 	heartbeatChan    chan lib.Heartbeat
 	statusChan       chan chan statusSummary
@@ -30,7 +30,7 @@ type Master struct {
 	scheduleTicker   *time.Ticker // channel to instruct the main loop to schedule tasks
 	controllerTicker *time.Ticker
 	controller       controller
-	taskSize         int64
+	taskSize         int
 	quit             chan bool
 }
 
@@ -64,7 +64,7 @@ func Init() Master {
 	return Master{
 		svc:              nil, // initialised in Run
 		instances:        make(map[string]slave),
-		jobs:             make(map[int64]*job),
+		jobs:             make(map[int]*job),
 		jobsChan:         make(chan lib.Job),
 		heartbeatChan:    make(chan lib.Heartbeat),
 		statusChan:       make(chan chan statusSummary),
@@ -132,7 +132,7 @@ func (m *Master) Run() {
 			// split the job into tasks
 			newJob := job{
 				Job:          j,
-				id:           rand.Int63(),
+				id:           rand.Int(),
 				runningTasks: 0,
 				maxTasks:     0,
 			}
@@ -165,12 +165,12 @@ func (m *Master) Run() {
 }
 
 // createSlaves creates a new slave instance.
-func createSlaves(svc *ec2.EC2, count int64) ([]*ec2.Instance, error) {
+func createSlaves(svc *ec2.EC2, count int) ([]*ec2.Instance, error) {
 	params := &ec2.RunInstancesInput{
 		ImageId:      aws.String(lib.SlaveImage),
 		InstanceType: aws.String(lib.SlaveType),
-		MinCount:     aws.Int64(count),
-		MaxCount:     aws.Int64(count),
+		MinCount:     aws.Int64(int64(count)),
+		MaxCount:     aws.Int64(int64(count)),
 		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
 			Arn: aws.String(lib.SlaveARN),
 		},
@@ -376,7 +376,7 @@ func (m *Master) runController() {
 func (m *Master) adjustInstanceCount(n int) {
 	if n > 0 {
 		go func() {
-			_, err := createSlaves(m.svc, int64(n))
+			_, err := createSlaves(m.svc, n)
 			if err != nil {
 				fmt.Println(err)
 			} else {
