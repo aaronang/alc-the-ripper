@@ -1,7 +1,6 @@
 package master
 
 import (
-	"bytes"
 	"encoding/json"
 	"log"
 	"math"
@@ -10,12 +9,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sort"
 	"time"
 
 	"github.com/aaronang/cong-the-ripper/lib"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
@@ -163,50 +159,6 @@ func (m *Master) Run() {
 	}
 }
 
-// createSlaves creates a new slave instance.
-func createSlaves(svc *ec2.EC2, count int) ([]*ec2.Instance, error) {
-	params := &ec2.RunInstancesInput{
-		ImageId:      aws.String(lib.SlaveImage),
-		InstanceType: aws.String(lib.SlaveType),
-		MinCount:     aws.Int64(int64(count)),
-		MaxCount:     aws.Int64(int64(count)),
-		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-			Arn: aws.String(lib.SlaveARN),
-		},
-		SecurityGroupIds: []*string{aws.String("sg-646fbb02")},
-	}
-	resp, err := svc.RunInstances(params)
-	return resp.Instances, err
-}
-
-// terminateSlaves terminates a slave instance.
-func terminateSlaves(svc *ec2.EC2, instances []*ec2.Instance) (*ec2.TerminateInstancesOutput, error) {
-	params := &ec2.TerminateInstancesInput{
-		InstanceIds: instanceIds(instances),
-	}
-	return svc.TerminateInstances(params)
-}
-
-// sendTask sends a task to a slave instance.
-func sendTask(t *lib.Task, addr string) (*http.Response, error) {
-	url := lib.Protocol + addr + lib.TasksCreatePath
-	body, err := t.ToJSON()
-	if err != nil {
-		panic(err)
-	}
-	return http.Post(url, lib.BodyType, bytes.NewBuffer(body))
-}
-
-func newEC2() *ec2.EC2 {
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(lib.AWSRegion)},
-	)
-	if err != nil {
-		panic(err)
-	}
-	return ec2.New(sess)
-}
-
 func (m *Master) initAWS() {
 	m.svc = newEC2()
 
@@ -223,45 +175,6 @@ func (m *Master) initAWS() {
 		m.instances[*ip] = slave{
 			maxSlots: lib.MaxSlotsPerInstance,
 			instance: s[0],
-		}
-	}
-}
-
-func getPublicIP(svc *ec2.EC2, instance *ec2.Instance) *string {
-	params := ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name: aws.String("instance-state-name"),
-				Values: []*string{
-					aws.String("pending"),
-					aws.String("running"),
-				},
-			},
-		},
-		InstanceIds: []*string{
-			instance.InstanceId,
-		},
-	}
-
-	var i int
-	for {
-		res, err := svc.DescribeInstances(&params)
-
-		// ignore the error because we may try again
-		if err == nil &&
-			len(res.Reservations) == 1 &&
-			len(res.Reservations[0].Instances) == 1 {
-
-			if res.Reservations[0].Instances[0].PublicIpAddress != nil {
-				return res.Reservations[0].Instances[0].PublicIpAddress
-			}
-
-		}
-		time.Sleep(10 * time.Second)
-		i++
-		if i > 12 {
-			log.Println("Unable to find public IP")
-			return nil
 		}
 	}
 }
@@ -302,14 +215,6 @@ func (m *Master) updateOnHeartbeat(beat lib.Heartbeat) {
 	// update task statuses on every heartbeat
 }
 
-func instanceIds(instances []*ec2.Instance) []*string {
-	instanceIds := make([]*string, len(instances))
-	for i, instance := range instances {
-		instanceIds[i] = instance.InstanceId
-	}
-	return instanceIds
-}
-
 func (m *Master) getTaskToSchedule() int {
 	for idx, t := range m.newTasks {
 		if !m.jobs[t.JobID].reachedMaxTasks() {
@@ -329,122 +234,6 @@ func (m *Master) slaveAvailable() string {
 		}
 	}
 	return slaveIP
-}
-
-func (m *Master) countTotalSlots() int {
-	cnt := 0
-	for _, i := range m.instances {
-		cnt += i.maxSlots
-	}
-	return cnt
-}
-
-func (m *Master) maxSlots() int {
-	// TODO do we set the manually or it's a property of AWS?
-	return 20 * lib.MaxSlotsPerInstance
-}
-
-func (m *Master) countRequiredSlots() int {
-	cnt := len(m.scheduledTasks)
-	cnt += len(m.newTasks)
-	if cnt > m.maxSlots() {
-		return m.maxSlots()
-	}
-	return cnt
-}
-
-// runController runs one iteration
-func (m *Master) runController() {
-	err := float64(m.countRequiredSlots() - m.countTotalSlots())
-
-	dt := m.controller.dt.Seconds()
-	m.controller.integral = m.controller.integral + err*dt
-	derivative := (err - m.controller.prevErr) / dt
-	output := m.controller.kp*err +
-		m.controller.ki*m.controller.integral +
-		m.controller.kd*derivative
-	m.controller.prevErr = err
-
-	log.Printf("err: %v, output: %v\n", err, output)
-	m.adjustInstanceCount(int(output))
-}
-
-func (m *Master) adjustInstanceCount(n int) {
-	if n > 0 {
-		go func() {
-			_, err := createSlaves(m.svc, n)
-			if err != nil {
-				log.Println("Failed to create slaves", err)
-			} else {
-				log.Printf("%v instances created successfully\n", n)
-				// no need to report back to the master loop
-				// because it should start receiving heartbeat messages
-			}
-		}()
-	} else {
-		// negate n to represent the (positive) number of instances to kill
-		// scale by the number of
-		n := -n
-		n = n / lib.MaxSlotsPerInstance
-		if n < 0 {
-			log.Fatalln("n cannot be negative")
-		} else if n == 0 {
-			log.Println("n is 0 in killSlaves")
-			return
-		}
-
-		// kills n least loaded slaves, the killed slaves may have unfinished tasks
-		// but the master should detect missing heartbeats and restart the tasks
-		slaves := make([]slave, len(m.instances))
-		var i int
-		for _, v := range m.instances {
-			slaves[i] = v
-			i++
-		}
-
-		sort.Sort(byTaskCount(slaves))
-		go func() {
-			_, err := terminateSlaves(m.svc, slavesToInstances(slaves[:n]))
-			if err != nil {
-				log.Println("Failed to terminate slaves", err)
-			} else {
-				log.Printf("%v instances terminated successfully", n)
-				// again, no need to report success/failure
-				// because heartbeat messages will stop
-			}
-		}()
-	}
-}
-
-type byTaskCount []slave
-
-func (a byTaskCount) Len() int {
-	return len(a)
-}
-
-func (a byTaskCount) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a byTaskCount) Less(i, j int) bool {
-	return len(a[i].tasks) < len(a[j].tasks)
-}
-
-func slavesToInstances(slaves []slave) []*ec2.Instance {
-	res := make([]*ec2.Instance, len(slaves))
-	for i := range slaves {
-		res[i] = slaves[i].instance
-	}
-	return res
-}
-
-func slavesMapToInstances(slaves map[string]slave) []*ec2.Instance {
-	res := make([]*ec2.Instance, len(slaves))
-	i := 0
-	for _, v := range slaves {
-		res[i] = v.instance
-	}
-	return res
 }
 
 func (m *Master) scheduleTask(tidx int, ip string) {
