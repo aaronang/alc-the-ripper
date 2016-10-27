@@ -9,7 +9,7 @@ import (
 
 func main() {
 	fmt.Println("slave starting...")
-	portPtr := flag.Int("port", 8080, "Web server port")
+	portPtr := flag.String("port", "8080", "Web server port")
 	flag.Parse()
 
 	s := slave.Init("instance.EC2.cong1", *portPtr)

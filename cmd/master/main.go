@@ -9,7 +9,7 @@ import (
 
 func main() {
 	fmt.Println("master starting...")
-	portPtr := flag.Int("port", 8080, "Web server port")
+	portPtr := flag.String("port", "8080", "Web server port")
 	flag.Parse()
 
 	m := master.Init(*portPtr)
