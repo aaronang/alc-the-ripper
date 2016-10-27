@@ -42,9 +42,7 @@ func TestSendTask(t *testing.T) {
 		Start:     "0",
 		End:       "0",
 	}
-	ip := "localhost"
-	i := ec2.Instance{PublicIpAddress: &ip}
-	if _, err := SendTask(ta, &i); err != nil {
+	if _, err := SendTask(ta, "localhost"); err != nil {
 		t.Error("Task did not send correctly", err)
 	}
 }
