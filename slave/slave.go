@@ -42,10 +42,10 @@ func (s *Slave) Run() {
 			go Execute(task, s.successChan, s.failChan)
 
 		case msg := <-s.successChan:
-			s.password_found(msg.taskID, msg.password)
+			s.passwordFound(msg.taskID, msg.password)
 
 		case msg := <-s.failChan:
-			s.password_not_found(msg.taskID)
+			s.passwordNotFound(msg.taskID)
 		}
 	}
 }
@@ -70,9 +70,9 @@ func (s *Slave) addTask(task lib.Task) {
 	s.heartbeat.TaskStatus = append(s.heartbeat.TaskStatus, taskStatus)
 }
 
-func (s *Slave) password_found(Id int, password string) {
+func (s *Slave) passwordFound(id int, password string) {
 	fmt.Println("Found password: " + password)
-	ts := s.taskStatusWithId(Id)
+	ts := s.taskStatusWithId(id)
 	if ts != nil {
 		ts.Status = lib.PasswordFound
 		ts.Password = password
@@ -81,9 +81,9 @@ func (s *Slave) password_found(Id int, password string) {
 	}
 }
 
-func (s *Slave) password_not_found(Id int) {
+func (s *Slave) passwordNotFound(id int) {
 	fmt.Println("Password not found")
-	ts := s.taskStatusWithId(Id)
+	ts := s.taskStatusWithId(id)
 	if ts != nil {
 		ts.Status = lib.PasswordNotFound
 	} else {
@@ -91,9 +91,9 @@ func (s *Slave) password_not_found(Id int) {
 	}
 }
 
-func (s *Slave) taskStatusWithId(Id int) *lib.TaskStatus {
+func (s *Slave) taskStatusWithId(id int) *lib.TaskStatus {
 	for i, ts := range s.heartbeat.TaskStatus {
-		if ts.Id == Id {
+		if ts.Id == id {
 			return &s.heartbeat.TaskStatus[i]
 		}
 	}
