@@ -94,7 +94,7 @@ func (m *Master) Run() {
 		http.HandleFunc(lib.HeartbeatPath, makeHeartbeatHandler(m.heartbeatChan))
 		http.HandleFunc(lib.StatusPath, makeStatusHandler(m.statusChan))
 		log.Println("Running master on port", m.port)
-		e := http.ListenAndServe(m.port, nil)
+		e := http.ListenAndServe(":"+m.port, nil)
 		if e != nil {
 			log.Fatalln(e)
 		}
