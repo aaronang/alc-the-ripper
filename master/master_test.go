@@ -1,3 +1,5 @@
+// +build !aws
+
 package master
 
 import (
@@ -35,7 +37,7 @@ func TestSendTask(t *testing.T) {
 		Start:   []byte("aaaa"),
 		TaskLen: 12,
 	}
-	if _, err := sendTask(ta, "localhost"); err != nil {
+	if _, err := sendTask(ta, "localhost:8080"); err != nil {
 		t.Error("Task did not send correctly", err)
 	}
 }

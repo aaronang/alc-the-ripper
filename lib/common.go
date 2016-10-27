@@ -8,7 +8,6 @@ import (
 
 // Global configuration
 const (
-	Port     = ":8080"
 	Protocol = "http://"
 
 	BodyType = "application/json"

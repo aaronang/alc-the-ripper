@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,6 +20,7 @@ import (
 )
 
 type Master struct {
+	port             string
 	svc              *ec2.EC2 // safe to be used concurrently
 	instances        map[string]slave
 	jobs             map[int]*job
@@ -55,9 +57,10 @@ type statusSummary struct {
 }
 
 // Init creates the master object
-func Init() Master {
+func Init(port string) Master {
 	// set some defaults
 	return Master{
+		port:             port,
 		svc:              nil, // initialised in Run
 		instances:        make(map[string]slave),
 		jobs:             make(map[int]*job),
@@ -94,7 +97,8 @@ func (m *Master) Run() {
 		http.HandleFunc(lib.JobsCreatePath, makeJobsHandler(m.jobsChan))
 		http.HandleFunc(lib.HeartbeatPath, makeHeartbeatHandler(m.heartbeatChan))
 		http.HandleFunc(lib.StatusPath, makeStatusHandler(m.statusChan))
-		e := http.ListenAndServe(lib.Port, nil)
+		log.Println("Running master on port", m.port)
+		e := http.ListenAndServe(m.port, nil)
 		if e != nil {
 			log.Fatalln(e)
 		}
@@ -184,8 +188,8 @@ func terminateSlaves(svc *ec2.EC2, instances []*ec2.Instance) (*ec2.TerminateIns
 }
 
 // sendTask sends a task to a slave instance.
-func sendTask(t *lib.Task, ip string) (*http.Response, error) {
-	url := lib.Protocol + ip + lib.Port + lib.TasksCreatePath
+func sendTask(t *lib.Task, addr string) (*http.Response, error) {
+	url := lib.Protocol + addr + lib.TasksCreatePath
 	body, err := t.ToJSON()
 	if err != nil {
 		panic(err)
@@ -445,7 +449,7 @@ func slavesMapToInstances(slaves map[string]slave) []*ec2.Instance {
 
 func (m *Master) scheduleTask(tidx int, ip string) {
 	// NOTE: if sendTask takes too long then it may block the main loop
-	if _, err := sendTask(m.newTasks[tidx], ip); err != nil {
+	if _, err := sendTask(m.newTasks[tidx], net.JoinHostPort(ip, m.port)); err != nil {
 		log.Println("Sending task to slave did not execute correctly.", err)
 	} else {
 		job := m.jobs[m.newTasks[tidx].JobID]
