@@ -34,7 +34,7 @@ type Heartbeat struct {
 	TaskStatus []TaskStatus
 }
 
-// Alphabet
+// Status
 type Status int
 
 const (
