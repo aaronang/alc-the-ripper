@@ -91,7 +91,7 @@ func (m *Master) Run() {
 	m.initAWS()
 	m.controllerTicker = time.NewTicker(m.controller.dt)
 	// TODO test how this performs when a lot of tasks get submitted.
-	m.scheduleTicker = time.NewTicker(100 * time.Millisecond)
+	m.scheduleTicker = time.NewTicker(time.Duration(100/(len(m.newTasks)+1)) * time.Millisecond)
 
 	// setup and run http
 	http.HandleFunc(lib.JobsCreatePath, makeJobsHandler(m.jobsChan))
@@ -123,9 +123,9 @@ func (m *Master) Run() {
 			// (controller runs in the background and manages the number of instances)
 			// call load balancer function to schedule the tasks
 			// move tasks from `newTasks` to `scheduledTasks`
-			if m.slotsAvailable() {
-				if tIdx := m.getTaskToSchedule(); tIdx != -1 {
-					m.scheduleTask(tIdx)
+			if slaveIP := m.slaveAvailable(); slaveIP != "" {
+				if tidx := m.getTaskToSchedule(); tidx != -1 {
+					m.scheduleTask(tidx, slaveIP)
 				}
 			}
 		case j := <-m.jobsChan:
@@ -323,30 +323,16 @@ func (m *Master) getTaskToSchedule() int {
 	return -1
 }
 
-func (m *Master) slotsAvailable() bool {
-	for _, i := range m.instances {
-		if len(i.tasks) < i.maxSlots {
-			return true
-		}
-	}
-	return false
-}
-
-func (m *Master) scheduleTask(tIdx int) {
-	minResources := math.MaxInt64
+func (m *Master) slaveAvailable() string {
+	minimumTasks := math.MaxInt64
 	var slaveIP string
-	for k, v := range m.instances {
-		if len(v.tasks) < minResources {
-			slaveIP = k
+	for ip, i := range m.instances {
+		if assignedTasks := len(i.tasks); assignedTasks < minimumTasks && assignedTasks < i.maxSlots {
+			minimumTasks = assignedTasks
+			slaveIP = ip
 		}
 	}
-	// NOTE: if sendTask takes too long then it may block the main loop
-	if _, err := sendTask(m.newTasks[tIdx], slaveIP); err != nil {
-		fmt.Println("Sending task to slave did not execute correctly.")
-	} else {
-		m.scheduledTasks = append(m.scheduledTasks, m.newTasks[tIdx])
-		m.newTasks = append(m.newTasks[:tIdx], m.newTasks[tIdx+1:]...)
-	}
+	return slaveIP
 }
 
 func (m *Master) countTotalSlots() int {
@@ -465,16 +451,14 @@ func slavesMapToInstances(slaves map[string]slave) []*ec2.Instance {
 	return res
 }
 
-/*
-func (m *Master) instancesFromSlaves(names []string) []*ec2.Instance {
-	var res []*ec2.Instance
-	for _, name := range names {
-		for k, v := range m.instances {
-			if k == name {
-				res = append(res, v.instance)
-			}
-		}
+func (m *Master) scheduleTask(tidx int, ip string) {
+	// NOTE: if sendTask takes too long then it may block the main loop
+	if _, err := sendTask(m.newTasks[tidx], ip); err != nil {
+		fmt.Println("Sending task to slave did not execute correctly.")
+	} else {
+		job := m.jobs[m.newTasks[tidx].JobID]
+		job.increaseRunningTasks()
+		m.scheduledTasks = append(m.scheduledTasks, m.newTasks[tidx])
+		m.newTasks = append(m.newTasks[:tidx], m.newTasks[tidx+1:]...)
 	}
-	return res
 }
-*/

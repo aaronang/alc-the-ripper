@@ -1,6 +1,7 @@
 package master
 
 import (
+	"log"
 	"math/big"
 
 	"github.com/aaronang/cong-the-ripper/lib"
@@ -16,6 +17,20 @@ type job struct {
 
 func (j *job) reachedMaxTasks() bool {
 	return j.runningTasks < j.maxTasks
+}
+
+func (j *job) increaseRunningTasks() {
+	if j.runningTasks >= len(j.tasks) || j.runningTasks >= j.maxTasks {
+		log.Fatalln("Trying to run more tasks than possible or allowed.")
+	}
+	j.runningTasks = j.runningTasks + 1
+}
+
+func (j *job) decreaseRunningTasks() {
+	if j.runningTasks <= 0 {
+		log.Fatalln("Running tasks can never be lower than zero.")
+	}
+	j.runningTasks = j.runningTasks - 1
 }
 
 // splitJob attempts to split a cracking job into equal sized tasks regardless of the job
@@ -34,7 +49,7 @@ func (j *job) splitJob(taskSize int64) {
 		tasks = append(tasks, &lib.Task{
 			Job:     j.Job,
 			JobID:   j.id,
-			ID:      int64(i),
+			ID:      i,
 			Start:   cands[i],
 			TaskLen: lens[i]})
 	}
