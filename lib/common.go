@@ -34,10 +34,20 @@ type Heartbeat struct {
 	TaskStatus []TaskStatus
 }
 
+// Status
+type Status int
+
+const (
+	Running Status = iota
+	PasswordFound
+	PasswordNotFound
+)
+
 type TaskStatus struct {
 	Id       int
 	JobId    int
-	Done     bool
+	Status   Status
+	Password string
 	Progress []byte // State of permutation
 }
 
@@ -219,8 +229,39 @@ func BigIntToBytes(alph Alphabet, bigInt *big.Int, l int) ([]byte, bool) {
 	return res, overflow
 }
 
+func ReverseArray(arr []byte) []byte {
+	for i := len(arr)/2 - 1; i >= 0; i-- {
+		opp := len(arr) - 1 - i
+		arr[i], arr[opp] = arr[opp], arr[i]
+	}
+	return arr
+}
+
 // TestEqInts tests the equality between two int slices
 func TestEqInts(a, b []int) bool {
+
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil {
+		return false
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func TestEqBytes(a, b []byte) bool {
 
 	if a == nil && b == nil {
 		return true
