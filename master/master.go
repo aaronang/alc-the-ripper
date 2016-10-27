@@ -3,7 +3,7 @@ package master
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"log"
 	"math"
 	"math/rand"
 	"net/http"
@@ -38,10 +38,6 @@ type slave struct {
 	tasks    []*lib.Task
 	maxSlots int
 	instance *ec2.Instance // can't populate this easily
-}
-
-type scheduler interface {
-	schedule(map[string]slave) string
 }
 
 type controller struct {
@@ -94,13 +90,13 @@ func (m *Master) Run() {
 	m.scheduleTicker = time.NewTicker(time.Duration(100/(len(m.newTasks)+1)) * time.Millisecond)
 
 	// setup and run http
-	http.HandleFunc(lib.JobsCreatePath, makeJobsHandler(m.jobsChan))
-	http.HandleFunc(lib.HeartbeatPath, makeHeartbeatHandler(m.heartbeatChan))
-	http.HandleFunc(lib.StatusPath, makeStatusHandler(m.statusChan))
 	go func() {
+		http.HandleFunc(lib.JobsCreatePath, makeJobsHandler(m.jobsChan))
+		http.HandleFunc(lib.HeartbeatPath, makeHeartbeatHandler(m.heartbeatChan))
+		http.HandleFunc(lib.StatusPath, makeStatusHandler(m.statusChan))
 		e := http.ListenAndServe(lib.Port, nil)
 		if e != nil {
-			fmt.Println(e)
+			log.Fatalln(e)
 		}
 	}()
 
@@ -153,11 +149,10 @@ func (m *Master) Run() {
 			_ = s
 		case <-m.quit:
 			// release all slaves
-			fmt.Println("Master stopping...")
+			log.Println("Master stopping...")
 			_, err := terminateSlaves(m.svc, slavesMapToInstances(m.instances))
 			if err != nil {
-				fmt.Println("Failed to terminate slaves on interrupt")
-				fmt.Println(err)
+				log.Fatalln("Failed to terminate slaves on interrupt", err)
 			}
 			os.Exit(0)
 		}
@@ -214,12 +209,12 @@ func (m *Master) initAWS() {
 	// create one slave on startup
 	s, err := createSlaves(m.svc, 1)
 	if err != nil {
-		fmt.Println("Failed to create slave")
-		panic(err)
+		log.Fatalln("Failed to create slave", err)
 	}
 
+	// NOTE: not necessary when heartbeat message are working
+	// master should update its fields according to the heartbeats
 	ip := getPublicIP(m.svc, s[0])
-	// probably not necessary becase
 	if ip != nil {
 		m.instances[*ip] = slave{
 			maxSlots: lib.MaxSlotsPerInstance,
@@ -247,16 +242,13 @@ func getPublicIP(svc *ec2.EC2, instance *ec2.Instance) *string {
 	var i int
 	for {
 		res, err := svc.DescribeInstances(&params)
-		fmt.Println("reservations", len(res.Reservations))
 
 		// ignore the error because we may try again
 		if err == nil &&
 			len(res.Reservations) == 1 &&
 			len(res.Reservations[0].Instances) == 1 {
 
-			fmt.Println(res.Reservations[0].Instances[0].State)
 			if res.Reservations[0].Instances[0].PublicIpAddress != nil {
-				fmt.Println("Found public IP")
 				return res.Reservations[0].Instances[0].PublicIpAddress
 			}
 
@@ -264,7 +256,7 @@ func getPublicIP(svc *ec2.EC2, instance *ec2.Instance) *string {
 		time.Sleep(10 * time.Second)
 		i++
 		if i > 12 {
-			fmt.Println("Unable to fine public IP")
+			log.Println("Unable to find public IP")
 			return nil
 		}
 	}
@@ -369,7 +361,7 @@ func (m *Master) runController() {
 		m.controller.kd*derivative
 	m.controller.prevErr = err
 
-	fmt.Printf("err: %v, output: %v\n", err, output)
+	log.Printf("err: %v, output: %v\n", err, output)
 	m.adjustInstanceCount(int(output))
 }
 
@@ -378,9 +370,9 @@ func (m *Master) adjustInstanceCount(n int) {
 		go func() {
 			_, err := createSlaves(m.svc, n)
 			if err != nil {
-				fmt.Println(err)
+				log.Println("Failed to create slaves", err)
 			} else {
-				fmt.Printf("%v instances created successfully\n", n)
+				log.Printf("%v instances created successfully\n", n)
 				// no need to report back to the master loop
 				// because it should start receiving heartbeat messages
 			}
@@ -391,9 +383,9 @@ func (m *Master) adjustInstanceCount(n int) {
 		n := -n
 		n = n / lib.MaxSlotsPerInstance
 		if n < 0 {
-			panic("n cannot be negative")
+			log.Fatalln("n cannot be negative")
 		} else if n == 0 {
-			fmt.Println("n is 0 in killSlaves")
+			log.Println("n is 0 in killSlaves")
 			return
 		}
 
@@ -410,9 +402,9 @@ func (m *Master) adjustInstanceCount(n int) {
 		go func() {
 			_, err := terminateSlaves(m.svc, slavesToInstances(slaves[:n]))
 			if err != nil {
-				fmt.Println(err)
+				log.Println("Failed to terminate slaves", err)
 			} else {
-				fmt.Printf("%v instances terminated successfully", n)
+				log.Printf("%v instances terminated successfully", n)
 				// again, no need to report success/failure
 				// because heartbeat messages will stop
 			}
@@ -454,7 +446,7 @@ func slavesMapToInstances(slaves map[string]slave) []*ec2.Instance {
 func (m *Master) scheduleTask(tidx int, ip string) {
 	// NOTE: if sendTask takes too long then it may block the main loop
 	if _, err := sendTask(m.newTasks[tidx], ip); err != nil {
-		fmt.Println("Sending task to slave did not execute correctly.")
+		log.Println("Sending task to slave did not execute correctly.", err)
 	} else {
 		job := m.jobs[m.newTasks[tidx].JobID]
 		job.increaseRunningTasks()
