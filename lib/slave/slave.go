@@ -12,6 +12,8 @@ var slaveInstance Slave
 
 type Slave struct {
 	port        string
+	masterIp    string
+	masterPort  string
 	heartbeat   lib.Heartbeat
 	successChan chan CrackerSuccess
 	failChan    chan CrackerFail
@@ -25,6 +27,8 @@ func Init(instanceId string, port string) *Slave {
 
 	slaveInstance = Slave{
 		port:        port,
+		masterIp:    "localhost",
+		masterPort:  "3000",
 		heartbeat:   heartbeat,
 		successChan: make(chan CrackerSuccess),
 		failChan:    make(chan CrackerFail),
