@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/aaronang/cong-the-ripper/master"
+	"github.com/aaronang/cong-the-ripper/lib/master"
 )
 
 func main() {
