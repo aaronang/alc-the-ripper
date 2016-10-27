@@ -1,10 +1,17 @@
 package main
 
-import "fmt"
-import "github.com/aaronang/cong-the-ripper/master"
+import (
+	"flag"
+	"fmt"
+
+	"github.com/aaronang/cong-the-ripper/master"
+)
 
 func main() {
 	fmt.Println("master starting...")
-	m := master.Init()
+	portPtr := flag.String("port", "8080", "Web server port")
+	flag.Parse()
+
+	m := master.Init(*portPtr)
 	m.Run()
 }

@@ -11,18 +11,20 @@ import (
 var slaveInstance Slave
 
 type Slave struct {
+	port        string
 	heartbeat   lib.Heartbeat
 	successChan chan CrackerSuccess
 	failChan    chan CrackerFail
 	addTaskChan chan lib.Task
 }
 
-func Init(instanceId string) *Slave {
+func Init(instanceId string, port string) *Slave {
 	heartbeat := lib.Heartbeat{
 		SlaveId: instanceId,
 	}
 
 	slaveInstance = Slave{
+		port:        port,
 		heartbeat:   heartbeat,
 		successChan: make(chan CrackerSuccess),
 		failChan:    make(chan CrackerFail),
@@ -33,7 +35,8 @@ func Init(instanceId string) *Slave {
 
 func (s *Slave) Run() {
 	http.HandleFunc(lib.TasksCreatePath, taskHandler)
-	go http.ListenAndServe(lib.Port, nil)
+	go http.ListenAndServe(":"+s.port, nil)
+	fmt.Println("Running slave on port", s.port)
 
 	for {
 		select {

@@ -20,6 +20,7 @@ type slave struct {
 }
 
 type Master struct {
+	port           string
 	instances      map[string]slave
 	jobs           map[int]*job
 	jobsChan       chan lib.Job
@@ -31,9 +32,9 @@ type Master struct {
 	scheduleChan   chan bool   // channel to instruct the main loop to schedule tasks
 }
 
-func Init() Master {
+func Init(port string) Master {
 	// TODO initialise Master correctly
-	return Master{}
+	return Master{port: port}
 }
 
 func (m *Master) Run() {
@@ -41,7 +42,9 @@ func (m *Master) Run() {
 	http.HandleFunc(lib.HeartbeatPath, m.heartbeatHandler)
 	http.HandleFunc(lib.StatusPath, m.statusHandler)
 
-	go http.ListenAndServe(lib.Port, nil)
+	go http.ListenAndServe(":"+m.port, nil)
+	fmt.Println("Running master on port", m.port)
+
 	go func() {
 		// TODO Test how this performs when a lot of tasks get submitted.
 		time.Sleep(time.Duration(100/(len(m.newTasks)+1)) * time.Millisecond)
