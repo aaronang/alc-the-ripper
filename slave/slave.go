@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/aaronang/cong-the-ripper/lib"
 )
@@ -11,18 +12,20 @@ import (
 var slaveInstance Slave
 
 type Slave struct {
+	port        int
 	heartbeat   lib.Heartbeat
 	successChan chan CrackerSuccess
 	failChan    chan CrackerFail
 	addTaskChan chan lib.Task
 }
 
-func Init(instanceId string) *Slave {
+func Init(instanceId string, port int) *Slave {
 	heartbeat := lib.Heartbeat{
 		SlaveId: instanceId,
 	}
 
 	slaveInstance = Slave{
+		port:        port,
 		heartbeat:   heartbeat,
 		successChan: make(chan CrackerSuccess),
 		failChan:    make(chan CrackerFail),
@@ -33,7 +36,8 @@ func Init(instanceId string) *Slave {
 
 func (s *Slave) Run() {
 	http.HandleFunc(lib.TasksCreatePath, taskHandler)
-	go http.ListenAndServe(lib.Port, nil)
+	go http.ListenAndServe(":"+strconv.Itoa(s.port), nil)
+	fmt.Println("Running slave on port", s.port)
 
 	for {
 		select {
