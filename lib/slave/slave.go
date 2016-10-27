@@ -37,6 +37,7 @@ func (s *Slave) Run() {
 	http.HandleFunc(lib.TasksCreatePath, taskHandler)
 	go http.ListenAndServe(":"+s.port, nil)
 	fmt.Println("Running slave on port", s.port)
+	go s.HeartbeatSender()
 
 	for {
 		select {

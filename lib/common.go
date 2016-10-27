@@ -36,6 +36,11 @@ type Heartbeat struct {
 	TaskStatus []TaskStatus
 }
 
+// ToJSON serializes a Heartbeat to JSON.
+func (h *Heartbeat) ToJSON() ([]byte, error) {
+	return json.Marshal(h)
+}
+
 // Status
 type Status int
 
