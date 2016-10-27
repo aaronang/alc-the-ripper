@@ -2,7 +2,7 @@ package slave
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/aaronang/cong-the-ripper/lib"
@@ -40,7 +40,7 @@ func Init(instanceId string, port string) *Slave {
 func (s *Slave) Run() {
 	http.HandleFunc(lib.TasksCreatePath, taskHandler)
 	go http.ListenAndServe(":"+s.port, nil)
-	fmt.Println("Running slave on port", s.port)
+	log.Println("Running slave on port", s.port)
 	go s.HeartbeatSender()
 
 	for {
@@ -79,23 +79,23 @@ func (s *Slave) addTask(task lib.Task) {
 }
 
 func (s *Slave) passwordFound(id int, password string) {
-	fmt.Println("Found password: " + password)
+	log.Println("Found password: " + password)
 	ts := s.taskStatusWithId(id)
 	if ts != nil {
 		ts.Status = lib.PasswordFound
 		ts.Password = password
 	} else {
-		fmt.Println("ERROR:", "Id not found in Taskstatus")
+		log.Println("ERROR:", "Id not found in Taskstatus")
 	}
 }
 
 func (s *Slave) passwordNotFound(id int) {
-	fmt.Println("Password not found")
+	log.Println("Password not found")
 	ts := s.taskStatusWithId(id)
 	if ts != nil {
 		ts.Status = lib.PasswordNotFound
 	} else {
-		fmt.Println("ERROR:", "Id not found in Taskstatus")
+		log.Println("ERROR:", "Id not found in Taskstatus")
 	}
 }
 

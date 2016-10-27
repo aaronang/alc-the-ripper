@@ -2,7 +2,7 @@ package slave
 
 import (
 	"bytes"
-	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"time"
@@ -14,10 +14,10 @@ func (s *Slave) HeartbeatSender() {
 	for {
 		select {
 		case <-time.After(time.Second * 5):
-			fmt.Println("Heartbeat...")
+			log.Println("Heartbeat...")
 			_, err := SendHeartbeat(s)
 			if err != nil {
-				fmt.Println("Heartbeat to master failed.")
+				log.Println("Heartbeat to master failed.")
 			}
 		}
 	}
