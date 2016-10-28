@@ -21,13 +21,28 @@ func TestCreateAndTerminateSlave(t *testing.T) {
 
 	svc := ec2.New(sess)
 
-	instances, err := createSlaves(svc, 3)
+	instances, err := createSlaves(svc, 3, "8080", "52.49.37.70", "8080")
 	if err != nil {
 		t.Error("Could not create instance", err)
 	}
 
 	if _, err = terminateSlaves(svc, instances); err != nil {
 		t.Error("Could not terminate instance", err)
+	}
+}
+
+func TestCreateSlaveWithUserData(t *testing.T) {
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(lib.AWSRegion)},
+	)
+	if err != nil {
+		t.Error("Could not create AWS session.", err)
+	}
+
+	svc := ec2.New(sess)
+
+	if _, err := createSlaves(svc, 1, "8080", "52.49.37.70", "8080"); err != nil {
+		t.Error("Could not create instance", err)
 	}
 }
 
