@@ -35,9 +35,9 @@ type Master struct {
 }
 
 type slave struct {
-	tasks    []*lib.Task
-	maxSlots int
-	c        chan<- bool
+	tasks         []*lib.Task
+	maxSlots      int
+	heartbeatChan chan<- bool
 }
 
 type controller struct {
@@ -146,12 +146,13 @@ func (m *Master) Run() {
 		case beat := <-m.heartbeatChan:
 			// update task statuses
 			// check whether a job has completed all its tasks
+			m.instances[beat.addr].heartbeatChan <- true
 			m.updateOnHeartbeat(beat)
 		case addr := <-m.heartbeatMissChan:
 			// moved the scheduled tasks back to new tasks to be re-scheduled
 			for i := range m.instances[addr].tasks {
 				task := m.instances[addr].tasks[i]
-				removeTaskFrom(m.instances[addr].tasks, task.ID, task.JobID)
+				m.scheduledTasks = removeTaskFrom(m.scheduledTasks, task.JobID, task.ID)
 				m.newTasks = append([]*lib.Task{task}, m.newTasks...)
 			}
 			delete(m.instances, addr)
@@ -276,9 +277,9 @@ func (m *Master) updateOnHeartbeat(beat heartbeat) {
 		}
 	} else { // for new instances
 		m.instances[beat.addr] = slave{
-			tasks:    make([]*lib.Task, 0),
-			maxSlots: lib.MaxSlotsPerInstance,
-			c:        heartbeatChecker(beat.addr, m.heartbeatMissChan),
+			tasks:         make([]*lib.Task, 0),
+			maxSlots:      lib.MaxSlotsPerInstance,
+			heartbeatChan: heartbeatChecker(beat.addr, m.heartbeatMissChan),
 		}
 		log.Printf("New instance %v created.", beat.addr)
 	}
