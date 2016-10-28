@@ -130,19 +130,12 @@ func getPublicIP(svc *ec2.EC2, instance *ec2.Instance) *string {
 	}
 }
 
-func slavesToInstances(slaves []slave) []*ec2.Instance {
-	res := make([]*ec2.Instance, len(slaves))
-	for i := range slaves {
-		res[i] = slaves[i].instance
-	}
-	return res
-}
-
-func slavesMapToInstances(slaves map[string]slave) []*ec2.Instance {
-	res := make([]*ec2.Instance, len(slaves))
+func mapToKeys(mymap map[string]slave) []string {
+	keys := make([]string, len(mymap))
 	i := 0
-	for _, v := range slaves {
-		res[i] = v.instance
+	for k := range mymap {
+		keys[i] = k
+		i++
 	}
-	return res
+	return keys
 }

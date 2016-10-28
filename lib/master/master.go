@@ -36,7 +36,6 @@ type Master struct {
 type slave struct {
 	tasks    []*lib.Task
 	maxSlots int
-	instance *ec2.Instance // can't populate this easily
 	c        chan<- bool
 }
 
@@ -86,7 +85,7 @@ func Init(port string) Master {
 // Run starts the master
 func (m *Master) Run() {
 	// initialise the nils
-	m.initAWS()
+	m.svc = newEC2()
 	m.controllerTicker = time.NewTicker(m.controller.dt)
 	// TODO test how this performs when a lot of tasks get submitted.
 	m.scheduleTicker = time.NewTicker(time.Duration(100/(len(m.newTasks)+1)) * time.Millisecond)
@@ -156,31 +155,12 @@ func (m *Master) Run() {
 		case <-m.quit:
 			// release all slaves
 			log.Println("Master stopping...")
-			_, err := terminateSlaves(m.svc, slavesMapToInstances(m.instances))
+			instances := instancesFromIPs(m.svc, mapToKeys(m.instances))
+			_, err := terminateSlaves(m.svc, instances)
 			if err != nil {
 				log.Fatalln("Failed to terminate slaves on interrupt", err)
 			}
 			os.Exit(0)
-		}
-	}
-}
-
-func (m *Master) initAWS() {
-	m.svc = newEC2()
-
-	// create one slave on startup
-	s, err := createSlaves(m.svc, 1)
-	if err != nil {
-		log.Fatalln("Failed to create slave", err)
-	}
-
-	// NOTE: not necessary when heartbeat message are working
-	// master should update its fields according to the heartbeats
-	ip := getPublicIP(m.svc, s[0])
-	if ip != nil {
-		m.instances[*ip] = slave{
-			maxSlots: lib.MaxSlotsPerInstance,
-			instance: s[0],
 		}
 	}
 }
@@ -222,7 +202,10 @@ func makeStatusHandler(c chan chan StatusJSON) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(res)
+		_, err = w.Write(res)
+		if err != nil {
+			log.Println("Failed to write status", err)
+		}
 	}
 }
 
@@ -291,20 +274,14 @@ func (m *Master) removeTask(ip string, jobID, taskID int) {
 }
 
 func (m *Master) updateOnHeartbeat(beat heartbeat) {
-	if _, ok := m.instances[beat.addr]; ok {
-		// existing slave, update
-		// update task statuses on every heartbeat
+	if _, ok := m.instances[beat.addr]; ok { // for instances that already exist
 		for _, s := range beat.TaskStatus {
 			m.updateTask(s, beat.addr)
 		}
-	} else {
-		// NOTE: this function should not block the main loop
-		// consider changing it if instancesFromIPs take too long
-		instance := instancesFromIPs(m.svc, []string{beat.addr})[0]
+	} else { // for new instances
 		m.instances[beat.addr] = slave{
 			tasks:    make([]*lib.Task, 0),
 			maxSlots: lib.MaxSlotsPerInstance,
-			instance: instance,
 			c:        heartbeatChecker(beat.addr, m.heartbeatMissChan),
 		}
 		log.Printf("New instance %v created.", beat.addr)
@@ -315,7 +292,7 @@ func heartbeatChecker(addr string, missedChan chan<- string) chan<- bool {
 	beatChan := make(chan bool)
 	go func() {
 		for {
-			timeout := time.After(5 * time.Second)
+			timeout := time.After(2 * lib.HeartbeatInterval)
 			select {
 			case <-timeout:
 				log.Printf("Missed heartbeat for %v", addr)
