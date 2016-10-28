@@ -13,7 +13,7 @@ import (
 func (s *Slave) HeartbeatSender() {
 	for {
 		select {
-		case <-time.After(time.Second * 5):
+		case <-time.After(lib.HeartbeatInterval):
 			log.Println("Heartbeat...")
 			_, err := SendHeartbeat(s)
 
@@ -39,7 +39,7 @@ func SendHeartbeat(s *Slave) (*http.Response, error) {
 		panic(err)
 	}
 
-	timeout := time.Duration(5 * time.Second)
+	timeout := time.Duration(lib.RequestTimeout)
 	client := http.Client{
 		Timeout: timeout,
 	}
