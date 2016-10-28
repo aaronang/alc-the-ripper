@@ -16,6 +16,7 @@ import (
 )
 
 type Master struct {
+	ip               string
 	port             string
 	svc              *ec2.EC2 // safe to be used concurrently
 	instances        map[string]slave
@@ -48,9 +49,10 @@ type controller struct {
 }
 
 // Init creates the master object
-func Init(port string) Master {
+func Init(port, ip string) Master {
 	// set some defaults
 	return Master{
+		ip:               ip,
 		port:             port,
 		svc:              nil, // initialised in Run
 		instances:        make(map[string]slave),
@@ -158,7 +160,7 @@ func (m *Master) initAWS() {
 	m.svc = newEC2()
 
 	// create one slave on startup
-	s, err := createSlaves(m.svc, 1)
+	s, err := createSlaves(m.svc, 1, "8080", m.ip, m.port)
 	if err != nil {
 		log.Fatalln("Failed to create slave", err)
 	}
