@@ -146,8 +146,13 @@ func (m *Master) Run() {
 			// check whether a job has completed all its tasks
 			m.updateOnHeartbeat(beat)
 		case addr := <-m.heartbeatMissChan:
-			// do something when heartbeat is missed
-			_ = addr
+			// moved the scheduled tasks back to new tasks to be re-scheduled
+			for i := range m.instances[addr].tasks {
+				task := m.instances[addr].tasks[i]
+				removeTaskFrom(m.instances[addr].tasks, task.ID, task.JobID)
+				m.newTasks = append([]*lib.Task{task}, m.newTasks...)
+			}
+			delete(m.instances, addr)
 		case s := <-m.statusChan:
 			// status handler gives us a channel,
 			// we write the status into the channel and the handler serves the result
@@ -234,42 +239,31 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 	}
 }
 
+func removeTaskFrom(tasks []*lib.Task, jobID, taskID int) []*lib.Task {
+	for i := range tasks {
+		if tasks[i].ID == taskID && tasks[i].JobID == jobID {
+			return append(tasks[:i], tasks[i+1:]...)
+		}
+	}
+	return nil
+}
+
 func (m *Master) removeTask(ip string, jobID, taskID int) {
-	jobIdx := -1
-	for i := range m.jobs[jobID].tasks {
-		if m.jobs[jobID].tasks[i].ID == taskID {
-			jobIdx = i
-			break
-		}
-	}
+	jobsRes := removeTaskFrom(m.jobs[jobID].tasks, jobID, taskID)
+	scheduledRes := removeTaskFrom(m.scheduledTasks, jobID, taskID)
+	instancesRes := removeTaskFrom(m.instances[ip].tasks, jobID, taskID)
 
-	scheduledIdx := -1
-	for i := range m.scheduledTasks {
-		if m.scheduledTasks[i].JobID == jobID && m.scheduledTasks[i].ID == taskID {
-			scheduledIdx = i
-			break
-		}
-	}
-
-	instanceIdx := -1
-	for i := range m.instances[ip].tasks {
-		t := m.instances[ip].tasks[i]
-		if t.ID == taskID && t.JobID == jobID {
-			instanceIdx = i
-			break
-		}
-	}
-
-	if jobIdx != -1 && scheduledIdx != -1 && instanceIdx != -1 {
-		m.jobs[jobID].tasks = append(m.jobs[jobID].tasks[:jobIdx], m.jobs[jobID].tasks[jobIdx+1:]...)
-		m.scheduledTasks = append(m.scheduledTasks[:scheduledIdx], m.scheduledTasks[scheduledIdx+1:]...)
+	if jobsRes != nil && scheduledRes != nil && instancesRes != nil {
+		log.Printf("Removed task - job: %v, task: %v", jobID, taskID)
+		m.jobs[jobID].tasks = jobsRes
+		m.scheduledTasks = scheduledRes
 
 		tmp := m.instances[ip]
-		tmp.tasks = append(tmp.tasks[:instanceIdx], tmp.tasks[instanceIdx+1:]...)
+		tmp.tasks = instancesRes
 		m.instances[ip] = tmp
 	} else {
-		log.Fatalf("Inconsistent behaviour in removeTask - jobIdx: %v, scheduledIdx: %v, instanceIdx: %v",
-			jobIdx, scheduledIdx, instanceIdx)
+
+		log.Printf("Failed to removed task - job: %v, task: %v\n", jobID, taskID)
 	}
 }
 
