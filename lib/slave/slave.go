@@ -20,15 +20,15 @@ type Slave struct {
 	addTaskChan chan lib.Task
 }
 
-func Init(instanceId string, port string) *Slave {
+func Init(instanceId, port, masterIp, masterPort string) *Slave {
 	heartbeat := lib.Heartbeat{
 		SlaveId: instanceId,
 	}
 
 	slaveInstance = Slave{
 		port:        port,
-		masterIp:    "localhost",
-		masterPort:  "3000",
+		masterIp:    masterIp,
+		masterPort:  masterPort,
 		heartbeat:   heartbeat,
 		successChan: make(chan CrackerSuccess),
 		failChan:    make(chan CrackerFail),
