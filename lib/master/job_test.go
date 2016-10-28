@@ -68,7 +68,7 @@ func TestChunkCandidates(t *testing.T) {
 	}
 }
 
-func testLastIsFinal(alph lib.Alphabet, combs [][]byte, lens []int64) bool {
+func testLastIsFinal(alph lib.Alphabet, combs [][]byte, lens []int) bool {
 	l := lens[len(lens)-1]
 	b := combs[len(combs)-1]
 	final := alph.FinalCandidate(len(b))

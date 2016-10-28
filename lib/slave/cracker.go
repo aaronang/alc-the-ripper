@@ -2,8 +2,8 @@ package slave
 
 import (
 	"github.com/aaronang/cong-the-ripper/lib"
-	"github.com/aaronang/cong-the-ripper/slave/brutedict"
-	"github.com/aaronang/cong-the-ripper/slave/hasher"
+	"github.com/aaronang/cong-the-ripper/lib/slave/brutedict"
+	"github.com/aaronang/cong-the-ripper/lib/slave/hasher"
 )
 
 func Execute(task lib.Task, successChan chan CrackerSuccess, failChan chan CrackerFail) {

@@ -7,8 +7,6 @@ import (
 	"github.com/aaronang/cong-the-ripper/lib"
 )
 
-// NOTE: consider using math/big for some of the operations in this package
-
 type job struct {
 	lib.Job
 	id           int
@@ -35,27 +33,34 @@ func (j *job) decreaseRunningTasks() {
 	j.runningTasks = j.runningTasks - 1
 }
 
-// SplitJob attempts to split a cracking job into equal sized tasks regardless of the job
+// splitJob attempts to split a cracking job into equal sized tasks regardless of the job
 // the taskSize represents the number of brute force iterations
-func SplitJob(job *job, taskSize int64) []lib.Task {
-	var tasks []lib.Task
-	cands, lens := chunkCandidates(job.Alphabet, job.KeyLen, taskSize)
+func (j *job) splitJob(taskSize int) {
+	if taskSize < j.Iter {
+		panic("taskSize cannot be lower than job.Iter")
+	}
+
+	// adjust taskSize depending on the PBKDF2 rounds
+	actualTaskSize := taskSize / j.Iter
+
+	var tasks []*lib.Task
+	cands, lens := chunkCandidates(j.Alphabet, j.KeyLen, actualTaskSize)
 	for i := range cands {
-		tasks = append(tasks, lib.Task{
-			Job:     job.Job,
-			JobID:   job.id,
+		tasks = append(tasks, &lib.Task{
+			Job:     j.Job,
+			JobID:   j.id,
 			ID:      i,
 			Start:   cands[i],
 			TaskLen: lens[i]})
 	}
-	return tasks
+	j.tasks = tasks
 }
 
 // chunkCandidates takes a character set and the required length l and splits to chunks of size n
-func chunkCandidates(alph lib.Alphabet, l int, n int64) ([][]byte, []int64) {
+func chunkCandidates(alph lib.Alphabet, l int, n int) ([][]byte, []int) {
 	cand := alph.InitialCandidate(l)
 	var cands [][]byte
-	var lens []int64
+	var lens []int
 	for {
 		newCand, overflow := nthCandidateFrom(alph, n, cand)
 		cands = append(cands, cand)
@@ -71,17 +76,17 @@ func chunkCandidates(alph lib.Alphabet, l int, n int64) ([][]byte, []int64) {
 }
 
 // nthCandidateFrom computes the n th candidate password from inp
-func nthCandidateFrom(alph lib.Alphabet, n int64, inp []byte) ([]byte, bool) {
+func nthCandidateFrom(alph lib.Alphabet, n int, inp []byte) ([]byte, bool) {
 	l := len(inp)
 	z := lib.BytesToBigInt(alph, inp)
-	z.Add(z, big.NewInt(n))
+	z.Add(z, big.NewInt(int64(n)))
 	return lib.BigIntToBytes(alph, z, l)
 }
 
 // countUntilFinal counts the number of iterations until the final candidate starting from cand
-func countUntilFinal(alph lib.Alphabet, cand []byte) int64 {
+func countUntilFinal(alph lib.Alphabet, cand []byte) int {
 	c := lib.BytesToBigInt(alph, cand)
 	f := lib.BytesToBigInt(alph, alph.FinalCandidate(len(cand)))
 	diff := f.Sub(f, c)
-	return diff.Int64()
+	return int(diff.Int64())
 }
