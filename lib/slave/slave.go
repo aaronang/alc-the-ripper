@@ -46,13 +46,16 @@ func (s *Slave) Run() {
 	for {
 		select {
 		case task := <-s.addTaskChan:
+			log.Println("[Main Loop]", "Add task:", task)
 			s.addTask(task)
 			go Execute(task, s.successChan, s.failChan)
 
 		case msg := <-s.successChan:
+			log.Println("[Main Loop]", "SuccessChan message:", msg)
 			s.passwordFound(msg.taskID, msg.password)
 
 		case msg := <-s.failChan:
+			log.Println("[Main Loop]", "FailChan message:", msg)
 			s.passwordNotFound(msg.taskID)
 		}
 	}
@@ -79,18 +82,18 @@ func (s *Slave) addTask(task lib.Task) {
 }
 
 func (s *Slave) passwordFound(id int, password string) {
-	log.Println("Found password: " + password)
+	log.Println("[ Task", id, "]", "Found password:", password)
 	ts := s.taskStatusWithId(id)
 	if ts != nil {
 		ts.Status = lib.PasswordFound
 		ts.Password = password
 	} else {
-		log.Println("ERROR:", "Id not found in Taskstatus")
+		log.Println("[ERROR]", "Id not found in Taskstatus")
 	}
 }
 
 func (s *Slave) passwordNotFound(id int) {
-	log.Println("Password not found")
+	log.Println("[ Task", id, "]", "Password not found")
 	ts := s.taskStatusWithId(id)
 	if ts != nil {
 		ts.Status = lib.PasswordNotFound
