@@ -58,10 +58,11 @@ type TaskStatus struct {
 // permutation to stop.
 type Task struct {
 	Job
-	JobID   int
-	ID      int
-	Start   []byte
-	TaskLen int
+	JobID    int
+	ID       int
+	Start    []byte
+	TaskLen  int
+	Progress []byte
 }
 
 // ToJSON serializes a Task to JSON.
