@@ -8,29 +8,29 @@ import (
 )
 
 type job struct {
-	lib.Job
-	id           int
-	tasks        []*lib.Task
-	runningTasks int
-	maxTasks     int
+	lib.Job      `json:"job"`
+	ID           int         `json:"id"`
+	Tasks        []*lib.Task `json:"-"`
+	RunningTasks int         `json:"runningTasks"`
+	MaxTasks     int         `json:"maxTasks"`
 }
 
 func (j *job) reachedMaxTasks() bool {
-	return j.runningTasks < j.maxTasks
+	return j.RunningTasks < j.MaxTasks
 }
 
 func (j *job) increaseRunningTasks() {
-	if j.runningTasks >= len(j.tasks) || j.runningTasks >= j.maxTasks {
+	if j.RunningTasks >= len(j.Tasks) || j.RunningTasks >= j.MaxTasks {
 		log.Fatalln("Trying to run more tasks than possible or allowed.")
 	}
-	j.runningTasks = j.runningTasks + 1
+	j.RunningTasks = j.RunningTasks + 1
 }
 
 func (j *job) decreaseRunningTasks() {
-	if j.runningTasks <= 0 {
+	if j.RunningTasks <= 0 {
 		log.Fatalln("Running tasks can never be lower than zero.")
 	}
-	j.runningTasks = j.runningTasks - 1
+	j.RunningTasks = j.RunningTasks - 1
 }
 
 // splitJob attempts to split a cracking job into equal sized tasks regardless of the job
@@ -48,12 +48,12 @@ func (j *job) splitJob(taskSize int) {
 	for i := range cands {
 		tasks = append(tasks, &lib.Task{
 			Job:     j.Job,
-			JobID:   j.id,
+			JobID:   j.ID,
 			ID:      i,
 			Start:   cands[i],
 			TaskLen: lens[i]})
 	}
-	j.tasks = tasks
+	j.Tasks = tasks
 }
 
 // chunkCandidates takes a character set and the required length l and splits to chunks of size n

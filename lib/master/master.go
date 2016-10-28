@@ -33,9 +33,9 @@ type Master struct {
 }
 
 type slave struct {
-	tasks    []*lib.Task
-	maxSlots int
-	instance *ec2.Instance // can't populate this easily
+	Tasks    []*lib.Task   `json:"tasks"`
+	MaxSlots int           `json:"maxSlots"`
+	Instance *ec2.Instance `json:"-"` // can't populate this easily
 }
 
 type controller struct {
@@ -48,8 +48,8 @@ type controller struct {
 }
 
 type statusSummary struct {
-	instances map[string]slave // TODO *ec2.Instance probably won't serialise
-	jobs      map[int64]*job
+	Instances map[string]slave `json:"instances"` // TODO *ec2.Instance probably won't serialise
+	Jobs      []*job           `json:"jobs"`
 }
 
 // Init creates the master object
@@ -128,16 +128,16 @@ func (m *Master) Run() {
 			// split the job into tasks
 			newJob := job{
 				Job:          j,
-				id:           rand.Int(),
-				runningTasks: 0,
-				maxTasks:     0,
+				ID:           rand.Int(),
+				RunningTasks: 0,
+				MaxTasks:     0,
 			}
 			newJob.splitJob(m.taskSize)
 
 			// update `jobs` and `newTasks`
-			m.jobs[newJob.id] = &newJob
-			for i := range newJob.tasks {
-				m.newTasks = append(m.newTasks, newJob.tasks[i])
+			m.jobs[newJob.ID] = &newJob
+			for i := range newJob.Tasks {
+				m.newTasks = append(m.newTasks, newJob.Tasks[i])
 			}
 		case beat := <-m.heartbeatChan:
 			// update task statuses
@@ -146,7 +146,14 @@ func (m *Master) Run() {
 		case s := <-m.statusChan:
 			// status handler gives us a channel,
 			// we write the status into the channel and the handler serves the result
-			_ = s
+			var jobs []*job
+			for i := range m.jobs {
+				jobs = append(jobs, m.jobs[i])
+			}
+			s <- statusSummary{
+				Instances: m.instances,
+				Jobs:      jobs,
+			}
 		case <-m.quit:
 			// release all slaves
 			log.Println("Master stopping...")
@@ -173,8 +180,8 @@ func (m *Master) initAWS() {
 	ip := getPublicIP(m.svc, s[0])
 	if ip != nil {
 		m.instances[*ip] = slave{
-			maxSlots: lib.MaxSlotsPerInstance,
-			instance: s[0],
+			MaxSlots: lib.MaxSlotsPerInstance,
+			Instance: s[0],
 		}
 	}
 }
@@ -203,8 +210,13 @@ func makeStatusHandler(c chan chan statusSummary) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resultsChan := make(chan statusSummary)
 		c <- resultsChan
-		<-resultsChan
-		// TODO read the results and serve status page
+		res, err := json.MarshalIndent(<-resultsChan, "", "\t")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(res)
 	}
 }
 
@@ -228,7 +240,7 @@ func (m *Master) slaveAvailable() string {
 	minimumTasks := math.MaxInt64
 	var slaveIP string
 	for ip, i := range m.instances {
-		if assignedTasks := len(i.tasks); assignedTasks < minimumTasks && assignedTasks < i.maxSlots {
+		if assignedTasks := len(i.Tasks); assignedTasks < minimumTasks && assignedTasks < i.MaxSlots {
 			minimumTasks = assignedTasks
 			slaveIP = ip
 		}

@@ -78,7 +78,7 @@ func (m *Master) countRequiredSlots() int {
 func (m *Master) countTotalSlots() int {
 	cnt := 0
 	for _, i := range m.instances {
-		cnt += i.maxSlots
+		cnt += i.MaxSlots
 	}
 	return cnt
 }
@@ -117,5 +117,5 @@ func (a byTaskCount) Swap(i, j int) {
 }
 
 func (a byTaskCount) Less(i, j int) bool {
-	return len(a[i].slave.tasks) < len(a[j].slave.tasks)
+	return len(a[i].slave.Tasks) < len(a[j].slave.Tasks)
 }

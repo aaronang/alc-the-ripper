@@ -57,11 +57,11 @@ type TaskStatus struct {
 // the slave knows from which string permutation to start and at which string
 // permutation to stop.
 type Task struct {
-	Job
-	JobID   int
-	ID      int
-	Start   []byte
-	TaskLen int
+	Job     `json:"-"`
+	JobID   int    `json:"jobId"`
+	ID      int    `json:"id"`
+	Start   []byte `json:"start"`
+	TaskLen int    `json:"taskLen"`
 }
 
 // ToJSON serializes a Task to JSON.
@@ -110,12 +110,12 @@ func (alph Alphabet) replicateAt(l, idx int) []byte {
 // Job is the customer facing resource representing a single password cracking job
 // we focus on PBKDF2 first with SHA256 first
 type Job struct {
-	Salt      []byte
-	Digest    []byte
-	KeyLen    int
-	Iter      int
-	Alphabet  Alphabet
-	Algorithm Algorithm
+	Salt      []byte    `json:"salt"`
+	Digest    []byte    `json:"digest"`
+	KeyLen    int       `json:"keyLen"`
+	Iter      int       `json:"iter"`
+	Alphabet  Alphabet  `json:"alphabet"`
+	Algorithm Algorithm `json:"algorithm"`
 }
 
 // Alphabets contains the set of all candidate characters for every alphabet
