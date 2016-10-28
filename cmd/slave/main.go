@@ -2,13 +2,13 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"log"
 
 	"github.com/aaronang/cong-the-ripper/lib/slave"
 )
 
 func main() {
-	fmt.Println("slave starting...")
+	log.Println("slave starting...")
 	portPtr := flag.String("port", "8080", "Web server port")
 	flag.Parse()
 

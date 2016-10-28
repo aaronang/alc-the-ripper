@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"math/big"
+	"time"
 )
 
 // Global configuration
@@ -29,11 +30,19 @@ const (
 
 	// TODO consider removing this constraint so that our system can be used in heterogeneous clusters
 	MaxSlotsPerInstance = 2
+
+	RequestTimeout    = 5 * time.Second
+	HeartbeatInterval = 5 * time.Second
 )
 
 type Heartbeat struct {
 	SlaveId    string // aws.Instance.InstanceId
 	TaskStatus []TaskStatus
+}
+
+// ToJSON serializes a Heartbeat to JSON.
+func (h *Heartbeat) ToJSON() ([]byte, error) {
+	return json.Marshal(h)
 }
 
 // Status
