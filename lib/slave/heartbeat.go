@@ -14,7 +14,7 @@ func (s *Slave) HeartbeatSender() {
 	for {
 		select {
 		case <-time.After(lib.HeartbeatInterval):
-			log.Println("Heartbeat...")
+			log.Println("[Heartbeat] Sending...")
 			_, err := SendHeartbeat(s)
 
 			if err == nil {
@@ -26,7 +26,7 @@ func (s *Slave) HeartbeatSender() {
 				}
 				s.heartbeat.TaskStatus = taskStatusses
 			} else {
-				log.Println("Heartbeat to master failed.")
+				log.Println("[Heartbeat] Delivery failed")
 			}
 		}
 	}
