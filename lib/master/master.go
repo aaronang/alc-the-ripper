@@ -100,7 +100,7 @@ func (m *Master) Run() {
 		log.Println("Running master on port", m.port)
 		e := http.ListenAndServe(":"+m.port, nil)
 		if e != nil {
-			log.Fatalln(e)
+			log.Panicln(e)
 		}
 	}()
 
@@ -166,7 +166,7 @@ func (m *Master) Run() {
 			instances := instancesFromIPs(m.svc, mapToKeys(m.instances))
 			_, err := terminateSlaves(m.svc, instances)
 			if err != nil {
-				log.Fatalln("Failed to terminate slaves on interrupt", err)
+				log.Panicln("Failed to terminate slaves on interrupt", err)
 			}
 			os.Exit(0)
 		}
@@ -175,6 +175,7 @@ func (m *Master) Run() {
 
 func makeJobsHandler(c chan lib.Job) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Println("JobsHandler")
 		var j lib.Job
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&j); err != nil {
@@ -187,6 +188,7 @@ func makeJobsHandler(c chan lib.Job) http.HandlerFunc {
 
 func makeHeartbeatHandler(c chan heartbeat) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Println("HeartbeatHandler")
 		var beat lib.Heartbeat
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&beat); err != nil {
@@ -202,6 +204,7 @@ func makeHeartbeatHandler(c chan heartbeat) http.HandlerFunc {
 
 func makeStatusHandler(c chan chan StatusJSON) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Println("StatusHandler")
 		statusChan := make(chan StatusJSON)
 		c <- statusChan
 		res, err := json.MarshalIndent(<-statusChan, "", "\t")
@@ -275,6 +278,7 @@ func (m *Master) removeTask(ip string, jobID, taskID int) {
 }
 
 func (m *Master) updateOnHeartbeat(beat heartbeat) {
+	log.Println("Updating state on new heartbeat from", beat.addr)
 	if _, ok := m.instances[beat.addr]; ok { // for instances that already exist
 		for _, s := range beat.TaskStatus {
 			m.updateTask(s, beat.addr)
@@ -329,6 +333,7 @@ func (m *Master) slaveAvailable() string {
 }
 
 func (m *Master) scheduleTask(tidx int, ip string) {
+	log.Println("Scheduling task to", ip)
 	// NOTE: if sendTask takes too long then it may block the main loop
 	if _, err := sendTask(m.newTasks[tidx], net.JoinHostPort(ip, m.port)); err != nil {
 		log.Println("Sending task to slave did not execute correctly.", err)

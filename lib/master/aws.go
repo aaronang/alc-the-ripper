@@ -84,7 +84,7 @@ func sendTask(t *lib.Task, addr string) (*http.Response, error) {
 	url := lib.Protocol + addr + lib.TasksCreatePath
 	body, err := t.ToJSON()
 	if err != nil {
-		panic(err)
+		log.Panicln(err)
 	}
 	return http.Post(url, lib.BodyType, bytes.NewBuffer(body))
 }
