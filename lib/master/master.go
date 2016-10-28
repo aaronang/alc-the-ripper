@@ -97,10 +97,10 @@ func (m *Master) Run() {
 		http.HandleFunc(lib.JobsCreatePath, makeJobsHandler(m.jobsChan))
 		http.HandleFunc(lib.HeartbeatPath, makeHeartbeatHandler(m.heartbeatChan))
 		http.HandleFunc(lib.StatusPath, makeStatusHandler(m.statusChan))
-		log.Println("Running master on port", m.port)
+		log.Println("[Run] Running master on port", m.port)
 		e := http.ListenAndServe(":"+m.port, nil)
 		if e != nil {
-			log.Panicln(e)
+			log.Panicln("[Run]", e)
 		}
 	}()
 
@@ -162,11 +162,11 @@ func (m *Master) Run() {
 			s <- createStatusJSON(m)
 		case <-m.quit:
 			// release all slaves
-			log.Println("Master stopping...")
+			log.Println("[Run] Master stopping...")
 			instances := instancesFromIPs(m.svc, mapToKeys(m.instances))
 			_, err := terminateSlaves(m.svc, instances)
 			if err != nil {
-				log.Panicln("Failed to terminate slaves on interrupt", err)
+				log.Panicln("[Run] Failed to terminate slaves on interrupt", err)
 			}
 			os.Exit(0)
 		}
@@ -175,7 +175,7 @@ func (m *Master) Run() {
 
 func makeJobsHandler(c chan lib.Job) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println("JobsHandler")
+		log.Println("[JobsHandler] received request")
 		var j lib.Job
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&j); err != nil {
@@ -188,7 +188,7 @@ func makeJobsHandler(c chan lib.Job) http.HandlerFunc {
 
 func makeHeartbeatHandler(c chan heartbeat) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println("HeartbeatHandler")
+		log.Println("[HeartbeatHandler] received request")
 		var beat lib.Heartbeat
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&beat); err != nil {
@@ -204,7 +204,7 @@ func makeHeartbeatHandler(c chan heartbeat) http.HandlerFunc {
 
 func makeStatusHandler(c chan chan StatusJSON) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println("StatusHandler")
+		log.Println("[StatusHandler] received request")
 		statusChan := make(chan StatusJSON)
 		c <- statusChan
 		res, err := json.MarshalIndent(<-statusChan, "", "\t")
@@ -215,7 +215,7 @@ func makeStatusHandler(c chan chan StatusJSON) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		_, err = w.Write(res)
 		if err != nil {
-			log.Println("Failed to write status", err)
+			log.Println("[StatusHandler] Failed to write status", err)
 		}
 	}
 }
@@ -229,10 +229,10 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 			} else {
 				if status.Status == lib.PasswordFound {
 					// TODO terminate the other tasks in the same job if a password is found
-					log.Printf("Password found!!!!: %v (task: %v, job, %v)\n",
+					log.Printf("[updateTask] Password found!!!!: %v (task: %v, job, %v)\n",
 						status.Password, status.Id, status.JobId)
 				} else {
-					log.Printf("Password not found: %v (task: %v, job, %v)\n",
+					log.Printf("[updateTask] Password not found: %v (task: %v, job, %v)\n",
 						status.Password, status.Id, status.JobId)
 				}
 
@@ -241,7 +241,7 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 				// remove the job if it's finished
 				if len(m.jobs[status.JobId].tasks) == 0 {
 					delete(m.jobs, status.JobId)
-					log.Printf("Job %v completed", status.JobId)
+					log.Printf("[updateTask] Job %v completed", status.JobId)
 				}
 
 			}
@@ -264,7 +264,7 @@ func (m *Master) removeTask(ip string, jobID, taskID int) {
 	instancesRes := removeTaskFrom(m.instances[ip].tasks, jobID, taskID)
 
 	if jobsRes != nil && scheduledRes != nil && instancesRes != nil {
-		log.Printf("Removed task - job: %v, task: %v", jobID, taskID)
+		log.Printf("[removeTask] job: %v, task: %v", jobID, taskID)
 		m.jobs[jobID].tasks = jobsRes
 		m.scheduledTasks = scheduledRes
 
@@ -273,13 +273,13 @@ func (m *Master) removeTask(ip string, jobID, taskID int) {
 		m.instances[ip] = tmp
 	} else {
 
-		log.Printf("Failed to removed task - job: %v, task: %v\n", jobID, taskID)
+		log.Printf("[removeTask] Failed to removed task - job: %v, task: %v\n", jobID, taskID)
 	}
 }
 
 func (m *Master) updateOnHeartbeat(beat heartbeat) {
-	log.Println("Updating state on new heartbeat from", beat.addr)
 	if _, ok := m.instances[beat.addr]; ok { // for instances that already exist
+		log.Println("[updateOnHeartbeat] updating existing instance", beat.addr)
 		for _, s := range beat.TaskStatus {
 			m.updateTask(s, beat.addr)
 		}
@@ -289,7 +289,7 @@ func (m *Master) updateOnHeartbeat(beat heartbeat) {
 			maxSlots:      lib.MaxSlotsPerInstance,
 			heartbeatChan: heartbeatChecker(beat.addr, m.heartbeatMissChan),
 		}
-		log.Printf("New instance %v created.", beat.addr)
+		log.Printf("[updateOnHeartbeat] New instance %v created.", beat.addr)
 	}
 }
 
@@ -300,7 +300,7 @@ func heartbeatChecker(addr string, missedChan chan<- string) chan<- bool {
 			timeout := time.After(2 * lib.HeartbeatInterval)
 			select {
 			case <-timeout:
-				log.Printf("Missed heartbeat for %v", addr)
+				log.Printf("[heartbeatChecker] Missed heartbeat for %v", addr)
 				missedChan <- addr
 				return
 			case <-beatChan:
@@ -333,10 +333,10 @@ func (m *Master) slaveAvailable() string {
 }
 
 func (m *Master) scheduleTask(tidx int, ip string) {
-	log.Println("Scheduling task to", ip)
+	log.Println("[scheduleTask] Scheduling task to", ip)
 	// NOTE: if sendTask takes too long then it may block the main loop
 	if _, err := sendTask(m.newTasks[tidx], net.JoinHostPort(ip, m.port)); err != nil {
-		log.Println("Sending task to slave did not execute correctly.", err)
+		log.Println("[scheduleTask] Sending task to slave did not execute correctly.", err)
 	} else {
 		job := m.jobs[m.newTasks[tidx].JobID]
 		job.increaseRunningTasks()
