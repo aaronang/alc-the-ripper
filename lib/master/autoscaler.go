@@ -48,16 +48,9 @@ func (m *Master) adjustInstanceCount(n int) {
 
 		// kills n least loaded slaves, the killed slaves may have unfinished tasks
 		// but the master should detect missing heartbeats and restart the tasks
-		slaves := make([]slave, len(m.instances))
-		var i int
-		for _, v := range m.instances {
-			slaves[i] = v
-			i++
-		}
-
-		sort.Sort(byTaskCount(slaves))
+		ips := sortInstancesByTaskCount(m.instances)[:n]
 		go func() {
-			_, err := terminateSlaves(m.svc, slavesToInstances(slaves[:n]))
+			_, err := terminateSlaves(m.svc, instancesFromIPs(m.svc, ips))
 			if err != nil {
 				log.Println("Failed to terminate slaves", err)
 			} else {
@@ -90,7 +83,30 @@ func (m *Master) countTotalSlots() int {
 	return cnt
 }
 
-type byTaskCount []slave
+func sortInstancesByTaskCount(instances map[string]slave) []string {
+	pairs := make([]ipSlavePair, len(instances))
+	var i int
+	for k, v := range instances {
+		pairs[i].slave = v
+		pairs[i].ip = k
+		i++
+	}
+
+	sort.Sort(byTaskCount(pairs))
+
+	ips := make([]string, len(pairs))
+	for i := range ips {
+		ips[i] = pairs[i].ip
+	}
+	return ips
+}
+
+type ipSlavePair struct {
+	ip    string
+	slave slave
+}
+
+type byTaskCount []ipSlavePair
 
 func (a byTaskCount) Len() int {
 	return len(a)
@@ -101,5 +117,5 @@ func (a byTaskCount) Swap(i, j int) {
 }
 
 func (a byTaskCount) Less(i, j int) bool {
-	return len(a[i].tasks) < len(a[j].tasks)
+	return len(a[i].slave.tasks) < len(a[j].slave.tasks)
 }

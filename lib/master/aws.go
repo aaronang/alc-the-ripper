@@ -30,6 +30,31 @@ func createSlaves(svc *ec2.EC2, count int) ([]*ec2.Instance, error) {
 	return resp.Instances, err
 }
 
+func instancesFromIPs(svc *ec2.EC2, ips []string) []*ec2.Instance {
+	awsIPs := make([]*string, len(ips))
+	for i := range awsIPs {
+		awsIPs[i] = aws.String(ips[i])
+	}
+
+	params := ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String("ip-address"),
+				Values: awsIPs,
+			},
+		},
+	}
+
+	res, err := svc.DescribeInstances(&params)
+	if err != nil {
+		log.Println("Failed to find instance from its public IP", err)
+		return nil
+	}
+
+	// the index should be valid, if not we crash
+	return res.Reservations[0].Instances
+}
+
 // terminateSlaves terminates a slave instance.
 func terminateSlaves(svc *ec2.EC2, instances []*ec2.Instance) (*ec2.TerminateInstancesOutput, error) {
 	params := &ec2.TerminateInstancesInput{
