@@ -16,27 +16,28 @@ import (
 )
 
 type Master struct {
-	ip               string
-	port             string
-	svc              *ec2.EC2 // safe to be used concurrently
-	instances        map[string]slave
-	jobs             map[int]*job
-	jobsChan         chan lib.Job
-	heartbeatChan    chan lib.Heartbeat
-	statusChan       chan chan StatusJSON
-	newTasks         []*lib.Task
-	scheduledTasks   []*lib.Task
-	scheduleTicker   *time.Ticker // channel to instruct the main loop to schedule tasks
-	controllerTicker *time.Ticker
-	controller       controller
-	taskSize         int
-	quit             chan bool
+	ip                string
+	port              string
+	svc               *ec2.EC2 // safe to be used concurrently
+	instances         map[string]slave
+	jobs              map[int]*job
+	jobsChan          chan lib.Job
+	heartbeatChan     chan heartbeat
+	heartbeatMissChan chan string // represents a key to instances
+	statusChan        chan chan StatusJSON
+	newTasks          []*lib.Task
+	scheduledTasks    []*lib.Task
+	scheduleTicker    *time.Ticker // channel to instruct the main loop to schedule tasks
+	controllerTicker  *time.Ticker
+	controller        controller
+	taskSize          int
+	quit              chan bool
 }
 
 type slave struct {
-	tasks    []*lib.Task
-	maxSlots int
-	instance *ec2.Instance // can't populate this easily
+	tasks         []*lib.Task
+	maxSlots      int
+	heartbeatChan chan<- bool
 }
 
 type controller struct {
@@ -48,22 +49,28 @@ type controller struct {
 	integral float64
 }
 
+type heartbeat struct {
+	lib.Heartbeat
+	addr string
+}
+
 // Init creates the master object
 func Init(port, ip string) Master {
 	// set some defaults
 	return Master{
-		ip:               ip,
-		port:             port,
-		svc:              nil, // initialised in Run
-		instances:        make(map[string]slave),
-		jobs:             make(map[int]*job),
-		jobsChan:         make(chan lib.Job),
-		heartbeatChan:    make(chan lib.Heartbeat),
-		statusChan:       make(chan chan StatusJSON),
-		newTasks:         make([]*lib.Task, 0),
-		scheduledTasks:   make([]*lib.Task, 0),
-		scheduleTicker:   nil, // initialised in Run
-		controllerTicker: nil, //initialised in Run
+		ip:                ip,
+		port:              port,
+		svc:               nil, // initialised in Run
+		instances:         make(map[string]slave),
+		jobs:              make(map[int]*job),
+		jobsChan:          make(chan lib.Job),
+		heartbeatChan:     make(chan heartbeat),
+		heartbeatMissChan: make(chan string),
+		statusChan:        make(chan chan StatusJSON),
+		newTasks:          make([]*lib.Task, 0),
+		scheduledTasks:    make([]*lib.Task, 0),
+		scheduleTicker:    nil, // initialised in Run
+		controllerTicker:  nil, //initialised in Run
 		controller: controller{
 			dt:       time.Minute * 2,
 			kp:       1,
@@ -80,7 +87,7 @@ func Init(port, ip string) Master {
 // Run starts the master
 func (m *Master) Run() {
 	// initialise the nils
-	m.initAWS()
+	m.svc = newEC2()
 	m.controllerTicker = time.NewTicker(m.controller.dt)
 	// TODO test how this performs when a lot of tasks get submitted.
 	m.scheduleTicker = time.NewTicker(time.Duration(100/(len(m.newTasks)+1)) * time.Millisecond)
@@ -139,7 +146,16 @@ func (m *Master) Run() {
 		case beat := <-m.heartbeatChan:
 			// update task statuses
 			// check whether a job has completed all its tasks
+			m.instances[beat.addr].heartbeatChan <- true
 			m.updateOnHeartbeat(beat)
+		case addr := <-m.heartbeatMissChan:
+			// moved the scheduled tasks back to new tasks to be re-scheduled
+			for i := range m.instances[addr].tasks {
+				task := m.instances[addr].tasks[i]
+				m.scheduledTasks = removeTaskFrom(m.scheduledTasks, task.JobID, task.ID)
+				m.newTasks = append([]*lib.Task{task}, m.newTasks...)
+			}
+			delete(m.instances, addr)
 		case s := <-m.statusChan:
 			// status handler gives us a channel,
 			// we write the status into the channel and the handler serves the result
@@ -147,31 +163,12 @@ func (m *Master) Run() {
 		case <-m.quit:
 			// release all slaves
 			log.Println("Master stopping...")
-			_, err := terminateSlaves(m.svc, slavesMapToInstances(m.instances))
+			instances := instancesFromIPs(m.svc, mapToKeys(m.instances))
+			_, err := terminateSlaves(m.svc, instances)
 			if err != nil {
 				log.Fatalln("Failed to terminate slaves on interrupt", err)
 			}
 			os.Exit(0)
-		}
-	}
-}
-
-func (m *Master) initAWS() {
-	m.svc = newEC2()
-
-	// create one slave on startup
-	s, err := createSlaves(m.svc, 1, "8080", m.ip, m.port)
-	if err != nil {
-		log.Fatalln("Failed to create slave", err)
-	}
-
-	// NOTE: not necessary when heartbeat message are working
-	// master should update its fields according to the heartbeats
-	ip := getPublicIP(m.svc, s[0])
-	if ip != nil {
-		m.instances[*ip] = slave{
-			maxSlots: lib.MaxSlotsPerInstance,
-			instance: s[0],
 		}
 	}
 }
@@ -188,11 +185,18 @@ func makeJobsHandler(c chan lib.Job) http.HandlerFunc {
 	}
 }
 
-func makeHeartbeatHandler(c chan lib.Heartbeat) http.HandlerFunc {
+func makeHeartbeatHandler(c chan heartbeat) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var beat lib.Heartbeat
-		// TODO parse json and sends the results directly to the main loop
-		c <- beat
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&beat); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		c <- heartbeat{
+			Heartbeat: beat,
+			addr:      r.RemoteAddr,
+		}
 	}
 }
 
@@ -206,15 +210,101 @@ func makeStatusHandler(c chan chan StatusJSON) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(res)
+		_, err = w.Write(res)
+		if err != nil {
+			log.Println("Failed to write status", err)
+		}
 	}
 }
 
-func (m *Master) updateOnHeartbeat(beat lib.Heartbeat) {
-	// check whether slave already exist, if not create one
-	// create a goroutine for every slave that checks for missed hearbeats
-	// if a miss is detected then report to master to be handled
-	// update task statuses on every heartbeat
+func (m *Master) updateTask(status lib.TaskStatus, ip string) {
+	for i := range m.jobs[status.JobId].tasks {
+		task := m.jobs[status.JobId].tasks[i]
+		if task.ID == status.Id {
+			if status.Status == lib.Running {
+				task.Progress = status.Progress
+			} else {
+				if status.Status == lib.PasswordFound {
+					// TODO terminate the other tasks in the same job if a password is found
+					log.Printf("Password found!!!!: %v (task: %v, job, %v)\n",
+						status.Password, status.Id, status.JobId)
+				} else {
+					log.Printf("Password not found: %v (task: %v, job, %v)\n",
+						status.Password, status.Id, status.JobId)
+				}
+
+				m.removeTask(ip, status.JobId, status.Id)
+
+				// remove the job if it's finished
+				if len(m.jobs[status.JobId].tasks) == 0 {
+					delete(m.jobs, status.JobId)
+					log.Printf("Job %v completed", status.JobId)
+				}
+
+			}
+		}
+	}
+}
+
+func removeTaskFrom(tasks []*lib.Task, jobID, taskID int) []*lib.Task {
+	for i := range tasks {
+		if tasks[i].ID == taskID && tasks[i].JobID == jobID {
+			return append(tasks[:i], tasks[i+1:]...)
+		}
+	}
+	return nil
+}
+
+func (m *Master) removeTask(ip string, jobID, taskID int) {
+	jobsRes := removeTaskFrom(m.jobs[jobID].tasks, jobID, taskID)
+	scheduledRes := removeTaskFrom(m.scheduledTasks, jobID, taskID)
+	instancesRes := removeTaskFrom(m.instances[ip].tasks, jobID, taskID)
+
+	if jobsRes != nil && scheduledRes != nil && instancesRes != nil {
+		log.Printf("Removed task - job: %v, task: %v", jobID, taskID)
+		m.jobs[jobID].tasks = jobsRes
+		m.scheduledTasks = scheduledRes
+
+		tmp := m.instances[ip]
+		tmp.tasks = instancesRes
+		m.instances[ip] = tmp
+	} else {
+
+		log.Printf("Failed to removed task - job: %v, task: %v\n", jobID, taskID)
+	}
+}
+
+func (m *Master) updateOnHeartbeat(beat heartbeat) {
+	if _, ok := m.instances[beat.addr]; ok { // for instances that already exist
+		for _, s := range beat.TaskStatus {
+			m.updateTask(s, beat.addr)
+		}
+	} else { // for new instances
+		m.instances[beat.addr] = slave{
+			tasks:         make([]*lib.Task, 0),
+			maxSlots:      lib.MaxSlotsPerInstance,
+			heartbeatChan: heartbeatChecker(beat.addr, m.heartbeatMissChan),
+		}
+		log.Printf("New instance %v created.", beat.addr)
+	}
+}
+
+func heartbeatChecker(addr string, missedChan chan<- string) chan<- bool {
+	beatChan := make(chan bool)
+	go func() {
+		for {
+			timeout := time.After(2 * lib.HeartbeatInterval)
+			select {
+			case <-timeout:
+				log.Printf("Missed heartbeat for %v", addr)
+				missedChan <- addr
+				return
+			case <-beatChan:
+				// ok, do nothing
+			}
+		}
+	}()
+	return beatChan
 }
 
 func (m *Master) getTaskToSchedule() int {

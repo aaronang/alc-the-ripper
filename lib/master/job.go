@@ -15,6 +15,11 @@ type job struct {
 	maxTasks     int
 }
 
+type task struct {
+	lib.Task
+	done bool
+}
+
 func (j *job) reachedMaxTasks() bool {
 	return j.runningTasks < j.maxTasks
 }
