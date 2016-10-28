@@ -23,7 +23,7 @@ type Master struct {
 	jobsChan          chan lib.Job
 	heartbeatChan     chan heartbeat
 	heartbeatMissChan chan string // represents a key to instances
-	statusChan        chan chan statusSummary
+	statusChan        chan chan StatusJSON
 	newTasks          []*lib.Task
 	scheduledTasks    []*lib.Task
 	scheduleTicker    *time.Ticker // channel to instruct the main loop to schedule tasks
@@ -49,11 +49,6 @@ type controller struct {
 	integral float64
 }
 
-type statusSummary struct {
-	instances map[string]slave // TODO *ec2.Instance probably won't serialise
-	jobs      map[int64]*job
-}
-
 type heartbeat struct {
 	lib.Heartbeat
 	addr string
@@ -70,7 +65,7 @@ func Init(port string) Master {
 		jobsChan:          make(chan lib.Job),
 		heartbeatChan:     make(chan heartbeat),
 		heartbeatMissChan: make(chan string),
-		statusChan:        make(chan chan statusSummary),
+		statusChan:        make(chan chan StatusJSON),
 		newTasks:          make([]*lib.Task, 0),
 		scheduledTasks:    make([]*lib.Task, 0),
 		scheduleTicker:    nil, // initialised in Run
@@ -156,8 +151,8 @@ func (m *Master) Run() {
 			_ = addr
 		case s := <-m.statusChan:
 			// status handler gives us a channel,
-			// we write the status into the channel and the the handler serves the result
-			_ = s
+			// we write the status into the channel and the handler serves the result
+			s <- createStatusJSON(m)
 		case <-m.quit:
 			// release all slaves
 			log.Println("Master stopping...")
@@ -217,12 +212,17 @@ func makeHeartbeatHandler(c chan heartbeat) http.HandlerFunc {
 	}
 }
 
-func makeStatusHandler(c chan chan statusSummary) http.HandlerFunc {
+func makeStatusHandler(c chan chan StatusJSON) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		resultsChan := make(chan statusSummary)
-		c <- resultsChan
-		<-resultsChan
-		// TODO read the results and serve status page
+		statusChan := make(chan StatusJSON)
+		c <- statusChan
+		res, err := json.MarshalIndent(<-statusChan, "", "\t")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(res)
 	}
 }
 
