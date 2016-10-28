@@ -133,7 +133,7 @@ func getPublicIP(svc *ec2.EC2, instance *ec2.Instance) *string {
 func slavesToInstances(slaves []slave) []*ec2.Instance {
 	res := make([]*ec2.Instance, len(slaves))
 	for i := range slaves {
-		res[i] = slaves[i].instance
+		res[i] = slaves[i].Instance
 	}
 	return res
 }
@@ -142,7 +142,7 @@ func slavesMapToInstances(slaves map[string]slave) []*ec2.Instance {
 	res := make([]*ec2.Instance, len(slaves))
 	i := 0
 	for _, v := range slaves {
-		res[i] = v.instance
+		res[i] = v.Instance
 	}
 	return res
 }
