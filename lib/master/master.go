@@ -226,9 +226,13 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 			} else {
 				if status.Status == lib.PasswordFound {
 					// TODO terminate the other tasks in the same job if a password is found
-					log.Printf("Password found: %v (task: %v, job, %v)\n",
+					log.Printf("Password found!!!!: %v (task: %v, job, %v)\n",
+						status.Password, status.Id, status.JobId)
+				} else {
+					log.Printf("Password not found: %v (task: %v, job, %v)\n",
 						status.Password, status.Id, status.JobId)
 				}
+
 				m.removeTask(ip, status.JobId, status.Id)
 
 				// remove the job if it's finished
