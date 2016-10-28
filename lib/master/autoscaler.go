@@ -28,7 +28,7 @@ func (m *Master) runController() {
 func (m *Master) adjustInstanceCount(n int) {
 	if n > 0 {
 		go func() {
-			_, err := createSlaves(m.svc, n)
+			_, err := createSlaves(m.svc, n, "8080", m.ip, m.port)
 			if err != nil {
 				log.Println("Failed to create slaves", err)
 			} else {

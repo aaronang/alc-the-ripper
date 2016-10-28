@@ -10,8 +10,9 @@ import (
 func main() {
 	fmt.Println("master starting...")
 	port := flag.String("port", "8080", "Web server port")
+	ip := flag.String("ip", "localhost", "Master IP")
 	flag.Parse()
 
-	m := master.Init(*port)
+	m := master.Init(*port, *ip)
 	m.Run()
 }

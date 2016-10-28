@@ -16,6 +16,7 @@ import (
 )
 
 type Master struct {
+	ip                string
 	port              string
 	svc               *ec2.EC2 // safe to be used concurrently
 	instances         map[string]slave
@@ -54,9 +55,10 @@ type heartbeat struct {
 }
 
 // Init creates the master object
-func Init(port string) Master {
+func Init(port, ip string) Master {
 	// set some defaults
 	return Master{
+		ip:                ip,
 		port:              port,
 		svc:               nil, // initialised in Run
 		instances:         make(map[string]slave),

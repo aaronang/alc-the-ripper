@@ -12,7 +12,7 @@ var task lib.Task
 var slave *Slave
 
 func Setup() {
-	slave = Init("instance.EC2.cong1", "8080")
+	slave = Init("instance.EC2.cong1", "8080", "127.0.0.1", "3000")
 	slave.successChan = make(chan CrackerSuccess)
 	slave.failChan = make(chan CrackerFail)
 

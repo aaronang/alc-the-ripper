@@ -4,6 +4,8 @@ package master
 
 import (
 	"bytes"
+	"encoding/base64"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -15,7 +17,19 @@ import (
 )
 
 // createSlaves creates a new slave instance.
-func createSlaves(svc *ec2.EC2, count int) ([]*ec2.Instance, error) {
+func createSlaves(svc *ec2.EC2, count int, slavePort, masterIP, masterPort string) ([]*ec2.Instance, error) {
+	var script = `#!/bin/bash
+
+set -x
+
+su centos <<'EOF'
+source ~/.bashrc
+go get github.com/aaronang/cong-the-ripper/cmd/slave
+go install github.com/aaronang/cong-the-ripper/cmd/slave
+~/go/bin/slave --port=%v --master-ip=%v --master-port=%v > ~/console.log 2>&1 &
+EOF
+`
+	userData := []byte(fmt.Sprintf(script, slavePort, masterIP, masterPort))
 	params := &ec2.RunInstancesInput{
 		ImageId:      aws.String(lib.SlaveImage),
 		InstanceType: aws.String(lib.SlaveType),
@@ -24,7 +38,9 @@ func createSlaves(svc *ec2.EC2, count int) ([]*ec2.Instance, error) {
 		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
 			Arn: aws.String(lib.SlaveARN),
 		},
+		KeyName:          aws.String("Cong the Ripper"),
 		SecurityGroupIds: []*string{aws.String("sg-646fbb02")},
+		UserData:         aws.String(base64.StdEncoding.EncodeToString(userData)),
 	}
 	resp, err := svc.RunInstances(params)
 	return resp.Instances, err
