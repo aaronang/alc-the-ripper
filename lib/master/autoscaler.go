@@ -40,12 +40,9 @@ func (m *Master) adjustInstanceCount(n int) {
 	} else {
 		// negate n to represent the (positive) number of instances to kill
 		// scale by the number of
-		n := -n
-		n = n / lib.MaxSlotsPerInstance
-		if n < 0 {
-			log.Fatalln("n cannot be negative")
-		} else if n == 0 {
-			log.Println("n is 0 in killSlaves")
+		n = -n / lib.MaxSlotsPerInstance
+		if n == 0 {
+			log.Println("n is 0 in adjustInstanceCount")
 			return
 		}
 
@@ -78,8 +75,7 @@ func (m *Master) maxSlots() int {
 }
 
 func (m *Master) countRequiredSlots() int {
-	cnt := len(m.scheduledTasks)
-	cnt += len(m.newTasks)
+	cnt := len(m.scheduledTasks) + len(m.newTasks)
 	if cnt > m.maxSlots() {
 		return m.maxSlots()
 	}

@@ -145,7 +145,7 @@ func (m *Master) Run() {
 			m.updateOnHeartbeat(beat)
 		case s := <-m.statusChan:
 			// status handler gives us a channel,
-			// we write the status into the channel and the the handler serves the result
+			// we write the status into the channel and the handler serves the result
 			_ = s
 		case <-m.quit:
 			// release all slaves
