@@ -16,7 +16,16 @@ func (s *Slave) HeartbeatSender() {
 		case <-time.After(time.Second * 5):
 			log.Println("Heartbeat...")
 			_, err := SendHeartbeat(s)
-			if err != nil {
+
+			if err == nil {
+				var taskStatusses []lib.TaskStatus
+				for _, ts := range s.heartbeat.TaskStatus {
+					if ts.Status == lib.Running {
+						taskStatusses = append(taskStatusses, ts)
+					}
+				}
+				s.heartbeat.TaskStatus = taskStatusses
+			} else {
 				log.Println("Heartbeat to master failed.")
 			}
 		}
