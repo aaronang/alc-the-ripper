@@ -225,6 +225,13 @@ func makeStatusHandler(c chan chan StatusJSON) http.HandlerFunc {
 }
 
 func (m *Master) updateTask(status lib.TaskStatus, ip string) {
+	if _, ok := m.jobs[status.JobId]; !ok {
+		log.Println("[updateTask] there is a job we don't know about", status.JobId)
+		// NOTE behaviour is undefine if instances are running tasks/jobs that we don't know about
+		// TODO kill that job/task
+		return
+	}
+
 	for i := range m.jobs[status.JobId].tasks {
 		task := m.jobs[status.JobId].tasks[i]
 		if task.ID == status.Id {
