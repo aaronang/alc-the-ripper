@@ -198,9 +198,10 @@ func makeHeartbeatHandler(c chan heartbeat) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 		c <- heartbeat{
 			Heartbeat: beat,
-			addr:      r.RemoteAddr,
+			addr:      ip,
 		}
 	}
 }
