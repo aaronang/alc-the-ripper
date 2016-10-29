@@ -164,9 +164,12 @@ func (m *Master) Run() {
 			// release all slaves
 			log.Println("[Run] Master stopping...")
 			instances := instancesFromIPs(m.svc, mapToKeys(m.instances))
-			_, err := terminateSlaves(m.svc, instances)
-			if err != nil {
-				log.Panicln("[Run] Failed to terminate slaves on interrupt", err)
+			if instances != nil && len(instances) > 0 {
+				_, err := terminateSlaves(m.svc, instances)
+				if err != nil {
+					log.Panicln("[Run] Failed to terminate slaves on interrupt", err)
+				}
+
 			}
 			os.Exit(0)
 		}

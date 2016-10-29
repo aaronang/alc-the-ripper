@@ -47,6 +47,10 @@ EOF
 }
 
 func instancesFromIPs(svc *ec2.EC2, ips []string) []*ec2.Instance {
+	if ips == nil || len(ips) == 0 {
+		return nil
+	}
+
 	awsIPs := make([]*string, len(ips))
 	for i := range awsIPs {
 		awsIPs[i] = aws.String(ips[i])
