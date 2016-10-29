@@ -41,9 +41,9 @@ func (j *job) decreaseRunningTasks() {
 // splitJob attempts to split a cracking job into equal sized tasks regardless of the job
 // the taskSize represents the number of brute force iterations
 func (j *job) splitJob(taskSize int) {
-	log.Printf("Splitting job %v to size %v\n", j.id, taskSize)
+	log.Printf("[splitJob] splitting job %v to size %v\n", j.id, taskSize)
 	if taskSize < j.Iter {
-		log.Panicln("taskSize cannot be lower than job.Iter")
+		log.Panicln("[splitJob] taskSize cannot be lower than job.Iter")
 	}
 
 	// adjust taskSize depending on the PBKDF2 rounds
@@ -60,6 +60,7 @@ func (j *job) splitJob(taskSize int) {
 			TaskLen: lens[i]})
 	}
 	j.tasks = tasks
+	log.Printf("[splitJob] Done, job %v has %v tasks\n", j.id, len(j.tasks))
 }
 
 // chunkCandidates takes a character set and the required length l and splits to chunks of size n

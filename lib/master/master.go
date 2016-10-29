@@ -146,8 +146,8 @@ func (m *Master) Run() {
 		case beat := <-m.heartbeatChan:
 			// update task statuses
 			// check whether a job has completed all its tasks
-			m.instances[beat.addr].heartbeatChan <- true
 			m.updateOnHeartbeat(beat)
+			m.instances[beat.addr].heartbeatChan <- true
 		case addr := <-m.heartbeatMissChan:
 			// moved the scheduled tasks back to new tasks to be re-scheduled
 			for i := range m.instances[addr].tasks {
