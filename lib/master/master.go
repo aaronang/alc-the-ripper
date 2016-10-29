@@ -134,7 +134,7 @@ func (m *Master) Run() {
 				Job:          j,
 				id:           rand.Int(),
 				runningTasks: 0,
-				maxTasks:     0,
+				maxTasks:     4, // TODO decide this value
 			}
 			newJob.splitJob(m.taskSize)
 
