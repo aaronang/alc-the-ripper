@@ -134,7 +134,7 @@ func (m *Master) Run() {
 				Job:          j,
 				id:           rand.Int(),
 				runningTasks: 0,
-				maxTasks:     0,
+				maxTasks:     4, // TODO decide this value
 			}
 			newJob.splitJob(m.taskSize)
 
@@ -146,8 +146,8 @@ func (m *Master) Run() {
 		case beat := <-m.heartbeatChan:
 			// update task statuses
 			// check whether a job has completed all its tasks
-			m.instances[beat.addr].heartbeatChan <- true
 			m.updateOnHeartbeat(beat)
+			m.instances[beat.addr].heartbeatChan <- true
 		case addr := <-m.heartbeatMissChan:
 			// moved the scheduled tasks back to new tasks to be re-scheduled
 			for i := range m.instances[addr].tasks {
@@ -164,9 +164,12 @@ func (m *Master) Run() {
 			// release all slaves
 			log.Println("[Run] Master stopping...")
 			instances := instancesFromIPs(m.svc, mapToKeys(m.instances))
-			_, err := terminateSlaves(m.svc, instances)
-			if err != nil {
-				log.Panicln("[Run] Failed to terminate slaves on interrupt", err)
+			if instances != nil && len(instances) > 0 {
+				_, err := terminateSlaves(m.svc, instances)
+				if err != nil {
+					log.Panicln("[Run] Failed to terminate slaves on interrupt", err)
+				}
+
 			}
 			os.Exit(0)
 		}
@@ -195,9 +198,10 @@ func makeHeartbeatHandler(c chan heartbeat) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 		c <- heartbeat{
 			Heartbeat: beat,
-			addr:      r.RemoteAddr,
+			addr:      ip,
 		}
 	}
 }
@@ -221,6 +225,13 @@ func makeStatusHandler(c chan chan StatusJSON) http.HandlerFunc {
 }
 
 func (m *Master) updateTask(status lib.TaskStatus, ip string) {
+	if _, ok := m.jobs[status.JobId]; !ok {
+		log.Println("[updateTask] there is a job we don't know about", status.JobId)
+		// NOTE behaviour is undefine if instances are running tasks/jobs that we don't know about
+		// TODO kill that job/task
+		return
+	}
+
 	for i := range m.jobs[status.JobId].tasks {
 		task := m.jobs[status.JobId].tasks[i]
 		if task.ID == status.Id {
