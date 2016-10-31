@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/aaronang/cong-the-ripper/lib"
 )
@@ -11,13 +12,14 @@ import (
 var slaveInstance Slave
 
 type Slave struct {
-	port        string
-	masterIp    string
-	masterPort  string
-	heartbeat   lib.Heartbeat
-	successChan chan CrackerSuccess
-	failChan    chan CrackerFail
-	addTaskChan chan lib.Task
+	port            string
+	masterIp        string
+	masterPort      string
+	heartbeat       lib.Heartbeat
+	successChan     chan CrackerSuccess
+	failChan        chan CrackerFail
+	addTaskChan     chan lib.Task
+	heartbeatTicker *time.Ticker
 }
 
 func Init(instanceId, port, masterIp, masterPort string) *Slave {
@@ -26,25 +28,35 @@ func Init(instanceId, port, masterIp, masterPort string) *Slave {
 	}
 
 	slaveInstance = Slave{
-		port:        port,
-		masterIp:    masterIp,
-		masterPort:  masterPort,
-		heartbeat:   heartbeat,
-		successChan: make(chan CrackerSuccess),
-		failChan:    make(chan CrackerFail),
-		addTaskChan: make(chan lib.Task),
+		port:            port,
+		masterIp:        masterIp,
+		masterPort:      masterPort,
+		heartbeat:       heartbeat,
+		successChan:     make(chan CrackerSuccess),
+		failChan:        make(chan CrackerFail),
+		addTaskChan:     make(chan lib.Task),
+		heartbeatTicker: nil,
 	}
 	return &slaveInstance
 }
 
 func (s *Slave) Run() {
-	http.HandleFunc(lib.TasksCreatePath, taskHandler)
-	go http.ListenAndServe(":"+s.port, nil)
 	log.Println("Running slave on port", s.port)
-	go s.HeartbeatSender()
 
+	go func() {
+		http.HandleFunc(lib.TasksCreatePath, taskHandler)
+		err := http.ListenAndServe(":"+s.port, nil)
+		if err != nil {
+			log.Panicln("[Main Loop] listener failed", err)
+		}
+	}()
+
+	s.heartbeatTicker = time.NewTicker(lib.HeartbeatInterval)
 	for {
 		select {
+		case <-s.heartbeatTicker.C:
+			s.sendHeartbeat()
+
 		case task := <-s.addTaskChan:
 			log.Println("[Main Loop]", "Add task:", task)
 			s.addTask(task)
