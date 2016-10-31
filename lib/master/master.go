@@ -349,6 +349,7 @@ func (m *Master) scheduleTask(tidx int, ip string) {
 	if _, err := sendTask(m.newTasks[tidx], net.JoinHostPort(ip, m.port)); err != nil {
 		log.Println("[scheduleTask] Sending task to slave did not execute correctly.", err)
 	} else {
+		log.Printf("[scheduleTask] scheduled new task %v to %v\n", m.newTasks[tidx].ID, ip)
 		job := m.jobs[m.newTasks[tidx].JobID]
 		job.increaseRunningTasks()
 		m.scheduledTasks = append(m.scheduledTasks, m.newTasks[tidx])

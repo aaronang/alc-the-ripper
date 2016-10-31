@@ -21,7 +21,7 @@ type task struct {
 }
 
 func (j *job) reachedMaxTasks() bool {
-	return j.runningTasks < j.maxTasks
+	return j.runningTasks >= j.maxTasks
 }
 
 func (j *job) increaseRunningTasks() {
