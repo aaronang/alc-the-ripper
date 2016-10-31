@@ -24,8 +24,7 @@ func (m *Master) runController() {
 
 	// output is the error in terms of number of resources/slots
 	// we convert it to adjustment to represent the number of instances
-	// NOTE the + 1 may need to be changed if lib.MaxSlotsPerInstance is not 2
-	adjustment := (int(math.Ceil(output)) + 1) / lib.MaxSlotsPerInstance
+	adjustment := int(math.Ceil((output / float64(lib.MaxSlotsPerInstance)) - 1.11e-16))
 	log.Printf("[autoscaler] err: %v, output: %v, adjustment: %v\n", err, output, adjustment)
 	m.adjustInstanceCount(adjustment)
 }
