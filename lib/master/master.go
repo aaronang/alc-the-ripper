@@ -224,6 +224,21 @@ func makeStatusHandler(c chan chan StatusJSON) http.HandlerFunc {
 	}
 }
 
+func (m *Master) updateTaskInInstances(t *lib.Task, ip string) {
+	inst := m.instances[ip]
+	for i := range inst.tasks {
+		if inst.tasks[i].ID == t.ID && inst.tasks[i].JobID == t.JobID {
+			inst.tasks[i] = t
+			m.instances[ip] = inst
+			return
+		}
+	}
+
+	// if we don't already have t in m.instances[ip].tasks, then we add it
+	inst.tasks = append(inst.tasks, t)
+	m.instances[ip] = inst
+}
+
 func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 	if _, ok := m.jobs[status.JobId]; !ok {
 		log.Println("[updateTask] there is a job we don't know about", status.JobId)
@@ -236,7 +251,9 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 		task := m.jobs[status.JobId].tasks[i]
 		if task.ID == status.Id {
 			if status.Status == lib.Running {
+				// check whether updating this pointer is OK
 				task.Progress = status.Progress
+				m.updateTaskInInstances(task, ip)
 			} else {
 				if status.Status == lib.PasswordFound {
 					// TODO terminate the other tasks in the same job if a password is found
