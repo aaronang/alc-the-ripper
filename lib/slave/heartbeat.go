@@ -10,29 +10,24 @@ import (
 	"github.com/aaronang/cong-the-ripper/lib"
 )
 
-func (s *Slave) HeartbeatSender() {
-	for {
-		select {
-		case <-time.After(lib.HeartbeatInterval):
-			log.Println("[Heartbeat] Sending...")
-			_, err := SendHeartbeat(s)
+func (s *Slave) sendHeartbeat() {
+	log.Println("[Heartbeat] Sending...")
+	_, err := postHeartbeat(s)
 
-			if err == nil {
-				var taskStatusses []lib.TaskStatus
-				for _, ts := range s.heartbeat.TaskStatus {
-					if ts.Status == lib.Running {
-						taskStatusses = append(taskStatusses, ts)
-					}
-				}
-				s.heartbeat.TaskStatus = taskStatusses
-			} else {
-				log.Println("[Heartbeat] Delivery failed")
+	if err == nil {
+		var taskStatusses []lib.TaskStatus
+		for _, ts := range s.heartbeat.TaskStatus {
+			if ts.Status == lib.Running {
+				taskStatusses = append(taskStatusses, ts)
 			}
 		}
+		s.heartbeat.TaskStatus = taskStatusses
+	} else {
+		log.Println("[Heartbeat] Delivery failed")
 	}
 }
 
-func SendHeartbeat(s *Slave) (*http.Response, error) {
+func postHeartbeat(s *Slave) (*http.Response, error) {
 	url := lib.Protocol + net.JoinHostPort(s.masterIp, s.masterPort) + lib.HeartbeatPath
 	body, err := s.heartbeat.ToJSON()
 	if err != nil {
