@@ -253,10 +253,8 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 
 				m.removeTask(ip, status.JobId, status.Id)
 
-				// remove the job if it's finished
+				// NOTE: we're not deleting the job for reporting purposes
 				if len(m.jobs[status.JobId].tasks) == 0 {
-					// NOTE: we're not deleting the job for reporting purposes
-					// delete(m.jobs, status.JobId)
 					j := m.jobs[status.JobId]
 					j.finishTime = time.Now()
 					m.jobs[status.JobId] = j
