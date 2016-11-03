@@ -24,7 +24,7 @@ set -x
 
 su centos <<'EOF'
 source ~/.bashrc
-go get github.com/aaronang/cong-the-ripper/cmd/slave
+go get -u github.com/aaronang/cong-the-ripper/cmd/slave
 go install github.com/aaronang/cong-the-ripper/cmd/slave
 ~/go/bin/slave --port=%v --master-ip=%v --master-port=%v > ~/console.log 2>&1 &
 EOF
