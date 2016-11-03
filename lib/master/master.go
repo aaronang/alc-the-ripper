@@ -236,6 +236,8 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 		task := m.jobs[status.JobId].tasks[i]
 		if task.ID == status.Id {
 			if status.Status == lib.Running {
+				// updating this pointer should be enough,
+				// it should already exist in the instances and scheduledTasks fields
 				task.Progress = status.Progress
 			} else {
 				if status.Status == lib.PasswordFound {
@@ -349,8 +351,14 @@ func (m *Master) scheduleTask(tidx int, ip string) {
 	if _, err := sendTask(m.newTasks[tidx], net.JoinHostPort(ip, m.port)); err != nil {
 		log.Println("[scheduleTask] Sending task to slave did not execute correctly.", err)
 	} else {
+		log.Printf("[scheduleTask] scheduled new task %v to %v\n", m.newTasks[tidx].ID, ip)
 		job := m.jobs[m.newTasks[tidx].JobID]
 		job.increaseRunningTasks()
+
+		inst := m.instances[ip]
+		inst.tasks = append(inst.tasks, m.newTasks[tidx])
+		m.instances[ip] = inst
+
 		m.scheduledTasks = append(m.scheduledTasks, m.newTasks[tidx])
 		m.newTasks = append(m.newTasks[:tidx], m.newTasks[tidx+1:]...)
 	}

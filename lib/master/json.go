@@ -16,10 +16,11 @@ type SlaveJSON struct {
 }
 
 type TaskJSON struct {
-	ID      int    `json:"id"`
-	JobID   int    `json:"jobId"`
-	Start   []byte `json:"start"`
-	TaskLen int    `json:"taskLen"`
+	ID       int    `json:"id"`
+	JobID    int    `json:"jobId"`
+	Start    []byte `json:"start"`
+	TaskLen  int    `json:"taskLen"`
+	Progress []byte `json:"progress"`
 }
 
 type JobJSON struct {
@@ -57,10 +58,11 @@ func createTasksJSON(ts []*lib.Task) []TaskJSON {
 	var tasks []TaskJSON
 	for _, t := range ts {
 		task := TaskJSON{
-			ID:      t.ID,
-			JobID:   t.JobID,
-			Start:   t.Start,
-			TaskLen: t.TaskLen,
+			ID:       t.ID,
+			JobID:    t.JobID,
+			Start:    t.Start,
+			TaskLen:  t.TaskLen,
+			Progress: t.Progress,
 		}
 		tasks = append(tasks, task)
 	}

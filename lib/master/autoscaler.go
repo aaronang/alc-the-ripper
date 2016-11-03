@@ -4,6 +4,7 @@ package master
 
 import (
 	"log"
+	"math"
 	"sort"
 
 	"github.com/aaronang/cong-the-ripper/lib"
@@ -21,8 +22,11 @@ func (m *Master) runController() {
 		m.controller.kd*derivative
 	m.controller.prevErr = err
 
-	log.Printf("err: %v, output: %v\n", err, output)
-	m.adjustInstanceCount(int(output))
+	// output is the error in terms of number of resources/slots
+	// we convert it to adjustment to represent the number of instances
+	adjustment := int(math.Ceil((output / float64(lib.MaxSlotsPerInstance)) - 1.11e-16))
+	log.Printf("[autoscaler] err: %v, output: %v, adjustment: %v\n", err, output, adjustment)
+	m.adjustInstanceCount(adjustment)
 }
 
 func (m *Master) adjustInstanceCount(n int) {
@@ -30,19 +34,18 @@ func (m *Master) adjustInstanceCount(n int) {
 		go func() {
 			_, err := createSlaves(m.svc, n, "8080", m.ip, m.port)
 			if err != nil {
-				log.Println("Failed to create slaves", err)
+				log.Println("[autoscaler] Failed to create slaves", err)
 			} else {
-				log.Printf("%v instances created successfully\n", n)
+				log.Printf("[autoscaler] %v instances created successfully\n", n)
 				// no need to report back to the master loop
 				// because it should start receiving heartbeat messages
 			}
 		}()
 	} else {
 		// negate n to represent the (positive) number of instances to kill
-		// scale by the number of
-		n = -n / lib.MaxSlotsPerInstance
+		n = -n
 		if n == 0 {
-			log.Println("n is 0 in adjustInstanceCount")
+			log.Println("[autoscaler] n is 0 in adjustInstanceCount")
 			return
 		}
 
@@ -52,9 +55,9 @@ func (m *Master) adjustInstanceCount(n int) {
 		go func() {
 			_, err := terminateSlaves(m.svc, instancesFromIPs(m.svc, ips))
 			if err != nil {
-				log.Println("Failed to terminate slaves", err)
+				log.Println("[autoscaler] Failed to terminate slaves", err)
 			} else {
-				log.Printf("%v instances terminated successfully", n)
+				log.Printf("[autoscaler] %v instances terminated successfully", n)
 				// again, no need to report success/failure
 				// because heartbeat messages will stop
 			}
