@@ -1,17 +1,17 @@
 package main
 
 import (
-	"flag"
-	"fmt"
+	"log"
 
 	"github.com/aaronang/cong-the-ripper/lib/master"
+	"github.com/ogier/pflag"
 )
 
 func main() {
-	fmt.Println("master starting...")
-	port := flag.String("port", "8080", "Web server port")
-	ip := flag.String("ip", "localhost", "Master IP")
-	flag.Parse()
+	log.Println("master starting...")
+	port := pflag.String("port", "8080", "Web server port")
+	ip := pflag.String("ip", "localhost", "Master IP")
+	pflag.Parse()
 
 	m := master.Init(*port, *ip)
 	m.Run()
