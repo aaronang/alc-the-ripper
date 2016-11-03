@@ -135,6 +135,8 @@ func (m *Master) Run() {
 				id:           rand.Int(),
 				runningTasks: 0,
 				maxTasks:     4, // TODO decide this value
+				startTime:    time.Now(),
+				// we keep finishTime to the zero value
 			}
 			newJob.splitJob(m.taskSize)
 
@@ -253,10 +255,13 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 
 				// remove the job if it's finished
 				if len(m.jobs[status.JobId].tasks) == 0 {
-					delete(m.jobs, status.JobId)
-					log.Printf("[updateTask] Job %v completed", status.JobId)
+					// NOTE: we're not deleting the job for reporting purposes
+					// delete(m.jobs, status.JobId)
+					j := m.jobs[status.JobId]
+					j.finishTime = time.Now()
+					m.jobs[status.JobId] = j
+					log.Printf("[updateTask] Job %v completed at %v", status.JobId, j.finishTime)
 				}
-
 			}
 		}
 	}
