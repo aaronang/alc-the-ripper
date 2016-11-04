@@ -2,6 +2,7 @@ package master
 
 import (
 	"github.com/aaronang/cong-the-ripper/lib"
+	"time"
 )
 
 type StatusJSON struct {
@@ -24,14 +25,16 @@ type TaskJSON struct {
 }
 
 type JobJSON struct {
-	ID        int           `json:"id"`
-	Salt      []byte        `json:"salt"`
-	Digest    []byte        `json:"digest"`
-	KeyLen    int           `json:"keyLen"`
-	Iter      int           `json:"iter"`
-	Alphabet  lib.Alphabet  `json:"alphabet"`
-	Algorithm lib.Algorithm `json:"algorithm"`
-	Tasks     []TaskJSON    `json:"tasks"`
+	ID         int           `json:"id"`
+	Salt       []byte        `json:"salt"`
+	Digest     []byte        `json:"digest"`
+	KeyLen     int           `json:"keyLen"`
+	Iter       int           `json:"iter"`
+	Alphabet   lib.Alphabet  `json:"alphabet"`
+	Algorithm  lib.Algorithm `json:"algorithm"`
+	Tasks      []TaskJSON    `json:"tasks"`
+	StartTime  time.Time     `json:"startTime"`
+	FinishTime time.Time     `json:"finishTime"`
 }
 
 func createStatusJSON(m *Master) StatusJSON {
@@ -73,14 +76,16 @@ func createJobsJSON(js map[int]*job) []JobJSON {
 	var jobs []JobJSON
 	for _, j := range js {
 		job := JobJSON{
-			ID:        j.id,
-			Salt:      j.Salt,
-			Digest:    j.Digest,
-			KeyLen:    j.KeyLen,
-			Iter:      j.Iter,
-			Alphabet:  j.Alphabet,
-			Algorithm: j.Algorithm,
-			Tasks:     createTasksJSON(j.tasks),
+			ID:         j.id,
+			Salt:       j.Salt,
+			Digest:     j.Digest,
+			KeyLen:     j.KeyLen,
+			Iter:       j.Iter,
+			Alphabet:   j.Alphabet,
+			Algorithm:  j.Algorithm,
+			Tasks:      createTasksJSON(j.tasks),
+			StartTime:  j.startTime,
+			FinishTime: j.finishTime,
 		}
 		jobs = append(jobs, job)
 	}

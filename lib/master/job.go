@@ -3,6 +3,7 @@ package master
 import (
 	"log"
 	"math/big"
+	"time"
 
 	"github.com/aaronang/cong-the-ripper/lib"
 )
@@ -13,11 +14,8 @@ type job struct {
 	tasks        []*lib.Task
 	runningTasks int
 	maxTasks     int
-}
-
-type task struct {
-	lib.Task
-	done bool
+	startTime    time.Time
+	finishTime   time.Time
 }
 
 func (j *job) reachedMaxTasks() bool {
