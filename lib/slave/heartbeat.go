@@ -12,24 +12,43 @@ import (
 
 func (s *Slave) sendHeartbeat() {
 	log.Println("[Heartbeat] Sending...")
-	_, err := postHeartbeat(s)
+	heartbeat := s.generateHeartbeat()
+	_, err := s.postHeartbeat(heartbeat)
 
-	if err == nil {
-		var taskStatusses []lib.TaskStatus
-		for _, ts := range s.heartbeat.TaskStatus {
-			if ts.Status == lib.Running {
-				taskStatusses = append(taskStatusses, ts)
-			}
-		}
-		s.heartbeat.TaskStatus = taskStatusses
-	} else {
+	if err != nil {
 		log.Println("[Heartbeat] Delivery failed")
 	}
 }
 
-func postHeartbeat(s *Slave) (*http.Response, error) {
+func (s *Slave) generateHeartbeat() lib.Heartbeat {
+	heartbeat := lib.Heartbeat{
+		SlaveId: s.id,
+	}
+	for i, task := range s.tasks {
+		var progress string
+		if task.Status == lib.Running {
+			c := make(chan string)
+			s.tasks[i].progressChan <- c
+			select {
+			case progress = <-c:
+			case <-time.After(time.Second * 1): // This could accually happen for a legitimate reason (much hash interations, slow hashing algorithms), but for now see what happens
+				log.Println("[ERROR]", "progressChan did not respond for task", task.ID)
+			}
+		}
+		heartbeat.TaskStatus = append(heartbeat.TaskStatus, lib.TaskStatus{
+			Id:       task.ID,
+			JobId:    task.JobID,
+			Status:   task.Status,
+			Password: task.Password,
+			Progress: progress,
+		})
+	}
+	return heartbeat
+}
+
+func (s *Slave) postHeartbeat(heartbeat lib.Heartbeat) (*http.Response, error) {
 	url := lib.Protocol + net.JoinHostPort(s.masterIp, s.masterPort) + lib.HeartbeatPath
-	body, err := s.heartbeat.ToJSON()
+	body, err := heartbeat.ToJSON()
 	if err != nil {
 		panic(err)
 	}

@@ -8,14 +8,20 @@ import (
 	"github.com/aaronang/cong-the-ripper/lib/slave/hasher"
 )
 
-func Execute(task lib.Task, successChan chan CrackerSuccess, failChan chan CrackerFail) {
-	bd := brutedict.New(&task)
+func Execute(task *task, successChan chan CrackerSuccess, failChan chan CrackerFail) {
+	bd := brutedict.New(&task.Task)
 	var hasher hasher.Hasher = new(hasher.Pbkdf2) // Can be swapped with other hashing algorithms
 
 	log.Println("[ Task", task.ID, "]", "Start cracker.Execute")
 	for {
 		if candidate := bd.Next(); candidate != nil {
-			hash := hasher.Hash(candidate, &task)
+			select {
+			case c := <-task.progressChan:
+				c <- string(candidate)
+			default:
+			}
+
+			hash := hasher.Hash(candidate, &task.Task)
 			// fmt.Println("Key base64: " + string(candidate) + " -> " + b64.StdEncoding.EncodeToString(hash))
 			if lib.TestEqBytes(hash, task.Digest) {
 				successChan <- CrackerSuccess{taskID: task.ID, password: string(candidate)}
