@@ -25,9 +25,9 @@ func (s *Slave) generateHeartbeat() lib.Heartbeat {
 		SlaveId: s.id,
 	}
 	for i, task := range s.tasks {
-		var progress string
+		var progress []byte
 		if task.Status == lib.Running {
-			c := make(chan string)
+			c := make(chan []byte)
 			s.tasks[i].progressChan <- c
 			select {
 			case progress = <-c:

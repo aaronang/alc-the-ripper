@@ -15,7 +15,7 @@ type task struct {
 	lib.Task
 	Status       lib.Status
 	Password     string
-	progressChan chan chan string
+	progressChan chan chan []byte
 }
 
 type Slave struct {
@@ -67,7 +67,7 @@ func (s *Slave) Run() {
 			task := &task{
 				Task:         t,
 				Status:       lib.Running,
-				progressChan: make(chan chan string),
+				progressChan: make(chan chan []byte),
 			}
 			if s.addTask(task) {
 				go Execute(task, s.successChan, s.failChan)

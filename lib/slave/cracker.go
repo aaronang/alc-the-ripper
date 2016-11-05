@@ -17,7 +17,8 @@ func Execute(task *task, successChan chan CrackerSuccess, failChan chan CrackerF
 		if candidate := bd.Next(); candidate != nil {
 			select {
 			case c := <-task.progressChan:
-				c <- string(candidate)
+				// Return reversed array to match reversed encoding in the master
+				c <- lib.ReverseArray(candidate)
 			default:
 			}
 

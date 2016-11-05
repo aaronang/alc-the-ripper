@@ -59,7 +59,7 @@ type TaskStatus struct {
 	JobId    int
 	Status   Status
 	Password string
-	Progress string // State of permutation
+	Progress []byte // State of permutation
 }
 
 // A Task defines the computational domain for string permutations. This way,
