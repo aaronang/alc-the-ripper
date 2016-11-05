@@ -31,7 +31,10 @@ func (s *Slave) generateHeartbeat() lib.Heartbeat {
 			s.tasks[i].progressChan <- c
 			select {
 			case progress = <-c:
-			case <-time.After(time.Second * 1): // This could accually happen for a legitimate reason (much hash interations, slow hashing algorithms), but for now see what happens
+			case <-time.After(time.Second * 1):
+				// This could accually happen for a legitimate reason
+				// (much hash interations, slow hashing algorithms)
+				// But for now see what happens
 				log.Println("[ERROR]", "progressChan did not respond for task", task.ID)
 			}
 		}
