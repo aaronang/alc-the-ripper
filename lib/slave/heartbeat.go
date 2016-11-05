@@ -40,7 +40,7 @@ func (s *Slave) generateHeartbeat() lib.Heartbeat {
 			JobId:    task.JobID,
 			Status:   task.Status,
 			Password: task.Password,
-			Progress: progress,
+			Progress: progress, // Can be empty
 		})
 	}
 	return heartbeat
