@@ -21,6 +21,7 @@ type Master struct {
 	svc               *ec2.EC2 // safe to be used concurrently
 	instances         map[string]slave
 	jobs              map[int]*job
+	completedJobs     map[int]*job
 	jobsChan          chan lib.Job
 	heartbeatChan     chan heartbeat
 	heartbeatMissChan chan string // represents a key to instances
@@ -63,6 +64,7 @@ func Init(port, ip string) Master {
 		svc:               nil, // initialised in Run
 		instances:         make(map[string]slave),
 		jobs:              make(map[int]*job),
+		completedJobs:     make(map[int]*job),
 		jobsChan:          make(chan lib.Job),
 		heartbeatChan:     make(chan heartbeat),
 		heartbeatMissChan: make(chan string),
@@ -253,11 +255,14 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 
 				m.removeTask(ip, status.JobId, status.Id)
 
-				// NOTE: we're not deleting the job for reporting purposes
+				// move to completedJobs for reporting purposes
 				if len(m.jobs[status.JobId].tasks) == 0 {
 					j := m.jobs[status.JobId]
 					j.finishTime = time.Now()
-					m.jobs[status.JobId] = j
+					m.completedJobs[status.JobId] = j
+
+					delete(m.jobs, status.JobId)
+
 					log.Printf("[updateTask] Job %v completed at %v", status.JobId, j.finishTime)
 				}
 			}
