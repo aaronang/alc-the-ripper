@@ -6,8 +6,9 @@ import (
 )
 
 type StatusJSON struct {
-	Slaves []SlaveJSON `json:"slaves"`
-	Jobs   []JobJSON   `json:"jobs"`
+	Slaves        []SlaveJSON `json:"slaves"`
+	Jobs          []JobJSON   `json:"jobs"`
+	CompletedJobs []JobJSON   `json:"completedJobs"`
 }
 
 type SlaveJSON struct {
@@ -39,8 +40,9 @@ type JobJSON struct {
 
 func createStatusJSON(m *Master) StatusJSON {
 	return StatusJSON{
-		Slaves: createSlavesJSON(m.instances),
-		Jobs:   createJobsJSON(m.jobs),
+		Slaves:        createSlavesJSON(m.instances),
+		Jobs:          createJobsJSON(m.jobs),
+		CompletedJobs: createJobsJSON(m.completedJobs),
 	}
 }
 
