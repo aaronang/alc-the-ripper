@@ -158,6 +158,7 @@ func (m *Master) Run() {
 				task := m.instances[addr].tasks[i]
 				m.scheduledTasks = removeTaskFrom(m.scheduledTasks, task.JobID, task.ID)
 				m.newTasks = append([]*lib.Task{task}, m.newTasks...)
+				m.jobs[task.JobID].decreaseRunningTasks()
 			}
 			delete(m.instances, addr)
 		case s := <-m.statusChan:
@@ -270,6 +271,7 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 	}
 }
 
+// removeTaskFrom returns a slice of task pointers as the result of removal
 func removeTaskFrom(tasks []*lib.Task, jobID, taskID int) []*lib.Task {
 	for i := range tasks {
 		if tasks[i].ID == taskID && tasks[i].JobID == jobID {
@@ -287,13 +289,14 @@ func (m *Master) removeTask(ip string, jobID, taskID int) {
 	if jobsRes != nil && scheduledRes != nil && instancesRes != nil {
 		log.Printf("[removeTask] job: %v, task: %v", jobID, taskID)
 		m.jobs[jobID].tasks = jobsRes
+		m.jobs[jobID].decreaseRunningTasks()
+
 		m.scheduledTasks = scheduledRes
 
 		tmp := m.instances[ip]
 		tmp.tasks = instancesRes
 		m.instances[ip] = tmp
 	} else {
-
 		log.Printf("[removeTask] Failed to removed task - job: %v, task: %v\n", jobID, taskID)
 	}
 }
