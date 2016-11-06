@@ -72,8 +72,8 @@ func (m *Master) maxSlots() int {
 
 func (m *Master) countRequiredSlots() int {
 	cnt := 0
-	for _, v := range m.jobs {
-		cnt += lib.Min(len(v.tasks), v.maxTasks)
+	for _, j := range m.jobs {
+		cnt += lib.Min(len(j.tasks), j.maxTasks)
 	}
 	if cnt > m.maxSlots() {
 		return m.maxSlots()
