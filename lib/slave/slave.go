@@ -19,7 +19,6 @@ type task struct {
 }
 
 type Slave struct {
-	id              string
 	port            string
 	masterIp        string
 	masterPort      string
@@ -30,9 +29,8 @@ type Slave struct {
 	tasks           []*task
 }
 
-func Init(instanceId, port, masterIp, masterPort string) *Slave {
+func Init(port, masterIp, masterPort string) *Slave {
 	slaveInstance = Slave{
-		id:              instanceId,
 		port:            port,
 		masterIp:        masterIp,
 		masterPort:      masterPort,

@@ -21,9 +21,8 @@ func (s *Slave) sendHeartbeat() {
 }
 
 func (s *Slave) generateHeartbeat() lib.Heartbeat {
-	heartbeat := lib.Heartbeat{
-		SlaveId: s.id,
-	}
+	heartbeat := lib.Heartbeat{}
+
 	for i, task := range s.tasks {
 		var progress []byte
 		if task.Status == lib.Running {

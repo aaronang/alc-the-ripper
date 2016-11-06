@@ -14,6 +14,6 @@ func main() {
 	masterPort := pflag.String("master-port", "8080", "Port of the master")
 	pflag.Parse()
 
-	s := slave.Init("instance.EC2.cong1", *port, *masterIP, *masterPort)
+	s := slave.Init(*port, *masterIP, *masterPort)
 	s.Run()
 }
