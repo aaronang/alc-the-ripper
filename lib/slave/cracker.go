@@ -10,12 +10,12 @@ import (
 
 func Execute(task *task, successChan chan CrackerSuccess, failChan chan CrackerFail) {
 	bd := brutedict.New(&task.Task)
-	var hasher hasher.Hasher = new(hasher.Pbkdf2) // Can be swapped with other hashing algorithms
+	hasher := new(hasher.Pbkdf2) // Can be swapped with other hashing algorithms
+	candidate := task.Start
 
 	log.Println("[ Task", task.ID, "]", "Start cracker.Execute")
 outer:
 	for {
-		var candidate []byte
 		select {
 		case c := <-task.progressChan:
 			// Return reversed array to match reversed encoding in the master
