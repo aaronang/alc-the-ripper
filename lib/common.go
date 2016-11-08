@@ -36,7 +36,6 @@ const (
 )
 
 type Heartbeat struct {
-	SlaveId    string // aws.Instance.InstanceId
 	TaskStatus []TaskStatus
 }
 

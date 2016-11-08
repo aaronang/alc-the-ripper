@@ -11,27 +11,29 @@ import (
 
 var slaveInstance Slave
 
+type task struct {
+	lib.Task
+	Status       lib.Status
+	Password     string
+	progressChan chan chan []byte
+}
+
 type Slave struct {
 	port            string
 	masterIp        string
 	masterPort      string
-	heartbeat       lib.Heartbeat
 	successChan     chan CrackerSuccess
 	failChan        chan CrackerFail
 	addTaskChan     chan lib.Task
 	heartbeatTicker *time.Ticker
+	tasks           []*task
 }
 
-func Init(instanceId, port, masterIp, masterPort string) *Slave {
-	heartbeat := lib.Heartbeat{
-		SlaveId: instanceId,
-	}
-
+func Init(port, masterIp, masterPort string) *Slave {
 	slaveInstance = Slave{
 		port:            port,
 		masterIp:        masterIp,
 		masterPort:      masterPort,
-		heartbeat:       heartbeat,
 		successChan:     make(chan CrackerSuccess),
 		failChan:        make(chan CrackerFail),
 		addTaskChan:     make(chan lib.Task),
@@ -57,10 +59,17 @@ func (s *Slave) Run() {
 		case <-s.heartbeatTicker.C:
 			s.sendHeartbeat()
 
-		case task := <-s.addTaskChan:
-			log.Println("[Main Loop]", "Add task:", task)
-			s.addTask(task)
-			go Execute(task, s.successChan, s.failChan)
+		case t := <-s.addTaskChan:
+			taskJSON, _ := t.ToJSON()
+			log.Println("[Main Loop]", "Add task:", string(taskJSON))
+			task := &task{
+				Task:         t,
+				Status:       lib.Running,
+				progressChan: make(chan chan []byte),
+			}
+			if s.addTask(task) {
+				go Execute(task, s.successChan, s.failChan)
+			}
 
 		case msg := <-s.successChan:
 			log.Println("[Main Loop]", "SuccessChan message:", msg)
@@ -83,22 +92,21 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 	slaveInstance.addTaskChan <- t
 }
 
-func (s *Slave) addTask(task lib.Task) {
-	taskStatus := lib.TaskStatus{
-		Id:       task.ID,
-		JobId:    task.JobID,
-		Status:   lib.Running,
-		Progress: task.Start,
+func (s *Slave) addTask(task *task) bool {
+	if s.taskWithID(task.ID) == nil {
+		s.tasks = append(s.tasks, task)
+		return true
 	}
-	s.heartbeat.TaskStatus = append(s.heartbeat.TaskStatus, taskStatus)
+	log.Println("[ERROR]", "Task with id", task.ID, "already exists. Request discarded.")
+	return false
 }
 
 func (s *Slave) passwordFound(id int, password string) {
 	log.Println("[ Task", id, "]", "Found password:", password)
-	ts := s.taskStatusWithId(id)
-	if ts != nil {
-		ts.Status = lib.PasswordFound
-		ts.Password = password
+	t := s.taskWithID(id)
+	if t != nil {
+		t.Status = lib.PasswordFound
+		t.Password = password
 	} else {
 		log.Println("[ERROR]", "Id not found in Taskstatus")
 	}
@@ -106,18 +114,18 @@ func (s *Slave) passwordFound(id int, password string) {
 
 func (s *Slave) passwordNotFound(id int) {
 	log.Println("[ Task", id, "]", "Password not found")
-	ts := s.taskStatusWithId(id)
-	if ts != nil {
-		ts.Status = lib.PasswordNotFound
+	t := s.taskWithID(id)
+	if t != nil {
+		t.Status = lib.PasswordNotFound
 	} else {
-		log.Println("ERROR:", "Id not found in Taskstatus")
+		log.Println("[ERROR]", "Id not found in Taskstatus")
 	}
 }
 
-func (s *Slave) taskStatusWithId(id int) *lib.TaskStatus {
-	for i, ts := range s.heartbeat.TaskStatus {
-		if ts.Id == id {
-			return &s.heartbeat.TaskStatus[i]
+func (s *Slave) taskWithID(id int) *task {
+	for i, t := range s.tasks {
+		if t.ID == id {
+			return s.tasks[i]
 		}
 	}
 	return nil
