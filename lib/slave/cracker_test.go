@@ -8,11 +8,8 @@ import (
 	"github.com/aaronang/cong-the-ripper/lib"
 )
 
-var task lib.Task
-var slave *Slave
-
-func Setup() {
-	slave = Init("instance.EC2.cong1", "8080", "127.0.0.1", "3000")
+func setupSlaveTask() (*Slave, *task) {
+	slave := Init("8080", "127.0.0.1", "3000")
 	slave.successChan = make(chan CrackerSuccess)
 	slave.failChan = make(chan CrackerFail)
 
@@ -27,17 +24,22 @@ func Setup() {
 		Algorithm: lib.PBKDF2,
 	}
 
-	task = lib.Task{
-		Job:     job,
-		JobID:   1,
-		ID:      1,
-		Start:   []byte("anoc"),
-		TaskLen: 26,
+	task := &task{
+		Task: lib.Task{
+			Job:     job,
+			JobID:   1,
+			ID:      1,
+			Start:   []byte("anoc"),
+			TaskLen: 26,
+		},
+		Status:       lib.Running,
+		progressChan: make(chan chan []byte),
 	}
+	return slave, task
 }
 
 func TestHit(t *testing.T) {
-	Setup()
+	slave, task := setupSlaveTask()
 	go Execute(task, slave.successChan, slave.failChan)
 	select {
 	case <-time.After(time.Second * 10):
@@ -48,7 +50,7 @@ func TestHit(t *testing.T) {
 }
 
 func TestMiss(t *testing.T) {
-	Setup()
+	slave, task := setupSlaveTask()
 	task.TaskLen = 1
 	go Execute(task, slave.successChan, slave.failChan)
 	select {
