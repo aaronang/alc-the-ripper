@@ -56,7 +56,7 @@ type heartbeat struct {
 }
 
 // Init creates the master object
-func Init(port, ip string) Master {
+func Init(port, ip string, kp, ki, kd float64) Master {
 	// set some defaults
 	return Master{
 		ip:                ip,
@@ -75,9 +75,9 @@ func Init(port, ip string) Master {
 		controllerTicker:  nil, //initialised in Run
 		controller: controller{
 			dt:       time.Minute * 2,
-			kp:       1,
-			kd:       0,
-			ki:       0,
+			kp:       kp,
+			kd:       kd,
+			ki:       ki,
 			prevErr:  0,
 			integral: 0,
 		},
