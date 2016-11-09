@@ -8,8 +8,9 @@ import (
 	"github.com/aaronang/cong-the-ripper/lib/slave/hasher"
 )
 
-func Execute(task *task, successChan chan CrackerSuccess, failChan chan CrackerFail) {
-	bd := brutedict.New(&task.Task)
+func execute(task *task, successChan chan CrackerSuccess, failChan chan CrackerFail) {
+	quitChan := make(chan int)
+	bd := brutedict.New(&task.Task, quitChan)
 	hasher := new(hasher.Pbkdf2) // Can be swapped with other hashing algorithms
 	var candidate []byte
 
@@ -21,9 +22,8 @@ outer:
 			// Return reversed array to match reversed encoding in the master
 			c <- lib.ReverseArray(candidate)
 		case <-task.killChan:
-			// job killed, assume it's a fail, another slave should have the result
-			failChan <- CrackerFail{taskID: task.ID}
-			bd.Close()
+			// job killed, another slave should have the result
+			quitChan <- 0
 			break outer
 		default:
 			if candidate = bd.Next(); candidate != nil {
@@ -35,7 +35,6 @@ outer:
 				}
 			} else {
 				failChan <- CrackerFail{taskID: task.ID}
-				bd.Close()
 				break outer
 			}
 		}

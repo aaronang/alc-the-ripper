@@ -40,7 +40,7 @@ func setupSlaveTask() (*Slave, *task) {
 
 func TestHit(t *testing.T) {
 	slave, task := setupSlaveTask()
-	go Execute(task, slave.successChan, slave.failChan)
+	go execute(task, slave.successChan, slave.failChan)
 	select {
 	case <-time.After(time.Second * 10):
 		t.Fail()
@@ -53,7 +53,7 @@ func TestHit(t *testing.T) {
 func TestProgressHit(t *testing.T) {
 	slave, task := setupSlaveTask()
 	task.Progress = []byte("dnoc")
-	go Execute(task, slave.successChan, slave.failChan)
+	go execute(task, slave.successChan, slave.failChan)
 	select {
 	case <-time.After(time.Second * 10):
 		t.Fail()
@@ -66,7 +66,7 @@ func TestProgressHit(t *testing.T) {
 func TestMiss(t *testing.T) {
 	slave, task := setupSlaveTask()
 	task.TaskLen = 1
-	go Execute(task, slave.successChan, slave.failChan)
+	go execute(task, slave.successChan, slave.failChan)
 	select {
 	case <-slave.successChan:
 		t.Fail()

@@ -27,7 +27,7 @@ type Slave struct {
 	successChan     chan CrackerSuccess
 	failChan        chan CrackerFail
 	addTaskChan     chan lib.Task
-	killJobChan     chan int
+	killChan        chan int
 	heartbeatTicker *time.Ticker
 	tasks           []*task
 }
@@ -40,7 +40,7 @@ func Init(port, masterIp, masterPort string) *Slave {
 		successChan:     make(chan CrackerSuccess),
 		failChan:        make(chan CrackerFail),
 		addTaskChan:     make(chan lib.Task),
-		killJobChan:     make(chan int),
+		killChan:        make(chan int),
 		heartbeatTicker: nil,
 	}
 	return &slaveInstance
@@ -51,7 +51,7 @@ func (s *Slave) Run() {
 
 	go func() {
 		http.HandleFunc(lib.TasksCreatePath, taskHandler)
-		http.HandleFunc(lib.JobsKillPath, makeKillJobHandler(s.killJobChan))
+		http.HandleFunc(lib.JobsKillPath, makeKillJobHandler(s.killChan))
 		err := http.ListenAndServe(":"+s.port, nil)
 		if err != nil {
 			log.Panicln("[Main Loop] listener failed", err)
@@ -74,7 +74,7 @@ func (s *Slave) Run() {
 				killChan:     make(chan bool),
 			}
 			if s.addTask(task) {
-				go Execute(task, s.successChan, s.failChan)
+				go execute(task, s.successChan, s.failChan)
 			}
 
 		case msg := <-s.successChan:
@@ -85,10 +85,11 @@ func (s *Slave) Run() {
 			log.Println("[Main Loop]", "FailChan message:", msg)
 			s.passwordNotFound(msg.taskID)
 
-		case jobID := <-s.killJobChan:
+		case jobID := <-s.killChan:
 			for i := range s.tasks {
 				if s.tasks[i].JobID == jobID {
 					s.tasks[i].killChan <- true
+					s.passwordNotFound(s.tasks[i].ID)
 					log.Println("[Main loop] killed job ", jobID, "task", s.tasks[i].ID)
 				}
 			}

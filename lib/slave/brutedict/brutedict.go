@@ -2,25 +2,23 @@ package brutedict
 
 import (
 	"math/big"
-	"sync"
 
 	"github.com/aaronang/cong-the-ripper/lib"
 )
 
 type BruteDict struct {
-	task    *lib.Task
-	queue   chan []byte
-	quit    chan bool
-	stopped bool
-	mutex   sync.RWMutex
+	task  *lib.Task
+	queue chan []byte
+	done  chan bool
+	kill  chan int
 }
 
-func New(task *lib.Task) (bd *BruteDict) {
+func New(task *lib.Task, killChan chan int) (bd *BruteDict) {
 	bd = &BruteDict{
-		task:    task,
-		queue:   make(chan []byte),
-		quit:    make(chan bool),
-		stopped: false,
+		task:  task,
+		queue: make(chan []byte),
+		done:  make(chan bool),
+		kill:  killChan,
 	}
 
 	go bd.list(task.Alphabet, task.Start, task.Progress, task.TaskLen)
@@ -30,16 +28,10 @@ func New(task *lib.Task) (bd *BruteDict) {
 func (bd *BruteDict) Next() (candidate []byte) {
 	select {
 	case candidate = <-bd.queue:
-	case <-bd.quit:
+	case <-bd.done:
+		close(bd.queue)
 	}
 	return
-}
-
-func (bd *BruteDict) Close() {
-	bd.mutex.Lock()
-	bd.stopped = true
-	bd.mutex.Unlock()
-	close(bd.queue)
 }
 
 func (bd *BruteDict) list(alph lib.Alphabet, start []byte, progress []byte, length int) {
@@ -53,25 +45,23 @@ func (bd *BruteDict) list(alph lib.Alphabet, start []byte, progress []byte, leng
 		currentComb = progressComb
 	}
 
-	len := len(start)
+	pwLen := len(start)
 
+outer:
 	for length > 0 {
-		bd.mutex.RLock()
-		if bd.stopped {
-			bd.mutex.RUnlock()
-			break
-		}
-		bd.mutex.RUnlock()
+		select {
+		case <-bd.kill:
+			break outer
+		default:
+			byteArray, overflow := lib.BigIntToBytes(alph, currentComb, pwLen)
+			if overflow {
+				break outer
+			}
 
-		byteArray, overflow := lib.BigIntToBytes(alph, currentComb, len)
-		if overflow {
-			break
+			bd.queue <- lib.ReverseArray(byteArray)
+			currentComb.Add(currentComb, big.NewInt(1))
+			length--
 		}
-
-		bd.queue <- lib.ReverseArray(byteArray)
-		currentComb.Add(currentComb, big.NewInt(1))
-		length--
 	}
-
-	bd.quit <- true
+	bd.done <- true
 }
