@@ -30,8 +30,8 @@ type TaskJSON struct {
 
 type JobJSON struct {
 	ID         int           `json:"id"`
-	Salt       string        `json:"salt"`
-	Digest     string        `json:"digest"`
+	Salt       []byte        `json:"salt"`
+	Digest     []byte        `json:"digest"`
 	KeyLen     int           `json:"keyLen"`
 	Iter       int           `json:"iter"`
 	Alphabet   lib.Alphabet  `json:"alphabet"`
@@ -85,8 +85,8 @@ func createJobsJSON(js map[int]*job) []JobJSON {
 	for _, j := range js {
 		job := JobJSON{
 			ID:         j.id,
-			Salt:       string(j.Salt),
-			Digest:     string(j.Digest),
+			Salt:       j.Salt,
+			Digest:     j.Digest,
 			KeyLen:     j.KeyLen,
 			Iter:       j.Iter,
 			Alphabet:   j.Alphabet,

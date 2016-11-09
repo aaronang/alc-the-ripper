@@ -32,8 +32,8 @@ func main() {
 	ip := pflag.String("ip", "localhost", "Master IP")
 	port := pflag.String("port", "8080", "Web server port")
 	jobs := pflag.Int("jobs", 2, "Number of jobs to create")
-	interval := pflag.Duration("interval", 1, "Interval between job creation in seconds")
-	output := pflag.String("output", "cong"+time.Now().String(), "Output filename")
+	interval := pflag.Int("interval", 1, "Interval between job creation in seconds")
+	output := pflag.String("output", "/tmp/cong"+time.Now().String(), "Output filename")
 	pflag.Parse()
 
 	url = lib.Protocol + net.JoinHostPort(*ip, *port)
@@ -44,7 +44,7 @@ func main() {
 				log.Panicln("[createJob] Job wasn't created properly.", err)
 			}
 			log.Println("[createJob] Job was created successfully.")
-			time.Sleep(*interval * time.Second)
+			time.Sleep(time.Duration(*interval) * time.Second)
 		}
 	}()
 
