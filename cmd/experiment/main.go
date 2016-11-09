@@ -31,9 +31,9 @@ var url string
 func main() {
 	ip := pflag.String("ip", "localhost", "Master IP")
 	port := pflag.String("port", "8080", "Web server port")
-	jobs := pflag.Int("jobs", 2, "Number of jobs to create")
-	interval := pflag.Int("interval", 1, "Interval between job creation in seconds")
-	output := pflag.String("output", "/tmp/cong"+time.Now().String(), "Output filename")
+	jobs := pflag.Int("jobs", 20, "Number of jobs to create")
+	interval := pflag.Int("interval", 60, "Interval between job creation in seconds")
+	output := pflag.String("output", "/tmp/cong"+time.Now().String()+".json", "Output filename")
 	pflag.Parse()
 
 	url = lib.Protocol + net.JoinHostPort(*ip, *port)
@@ -77,7 +77,7 @@ func main() {
 		f.WriteString("\n,")
 		log.Println(string(report))
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(10 * time.Second)
 	}
 }
 
