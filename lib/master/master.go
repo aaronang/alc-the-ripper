@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 
 	"github.com/aaronang/cong-the-ripper/lib"
@@ -283,7 +284,8 @@ func (m *Master) killTasksOnSlave(jobID int) {
 			if inst.tasks[i].JobID == jobID {
 				// TODO why are we using master's port?
 				addr := net.JoinHostPort(ip, m.port)
-				_, err := http.Get(addr + "/" + lib.JobsKillPath + "?jobid=" + string(jobID))
+				jobIDStr := strconv.Itoa(jobID)
+				_, err := http.Get(addr + "/" + lib.JobsKillPath + "?jobid=" + jobIDStr)
 				if err != nil {
 					log.Panicln("[killTasksOnSlave] failed send kill job request", err)
 				}
