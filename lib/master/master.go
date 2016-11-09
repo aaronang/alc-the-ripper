@@ -302,6 +302,9 @@ func (m *Master) killTasksOnSlave(jobID int) {
 				if err != nil {
 					log.Panicln("[killTasksOnSlave] failed send kill job request", err)
 				}
+
+				// only send one request per instance
+				break
 			}
 		}
 	}

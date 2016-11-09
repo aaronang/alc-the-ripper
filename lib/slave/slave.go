@@ -116,7 +116,7 @@ func makeKillJobHandler(c chan int) func(w http.ResponseWriter, r *http.Request)
 		if err != nil {
 			log.Panicln("[killJobHandler] failed to parse", jobID, err)
 		}
-		log.Println("[jobsHandler] sending kill requet into channel", res)
+		log.Println("[jobsHandler] sending kill request into channel", res)
 		c <- int(res)
 	}
 }
