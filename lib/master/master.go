@@ -179,7 +179,10 @@ func (m *Master) Run() {
 				select {
 				case jobID := <-m.killJobChan:
 					m.killTasksOnSlave(jobID)
-					m.clearNewTaskOfJob(jobID)
+					m.newTasks = removeTaskOfJob(m.newTasks, jobID)
+					m.scheduledTasks = removeTaskOfJob(m.scheduledTasks, jobID)
+					m.jobs[jobID].tasks = make([]*lib.Task, 0)
+					m.moveJobToCompletion(jobID)
 				default:
 					break outer
 				}
@@ -198,6 +201,14 @@ func (m *Master) Run() {
 			os.Exit(0)
 		}
 	}
+}
+
+func (m *Master) moveJobToCompletion(jobID int) {
+	j := m.jobs[jobID]
+	j.finishTime = time.Now()
+	m.completedJobs[jobID] = j
+	delete(m.jobs, jobID)
+	log.Printf("[Run] Job %v completed at %v", jobID, j.finishTime)
 }
 
 func makeJobsHandler(c chan lib.Job) http.HandlerFunc {
@@ -282,15 +293,8 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 
 				m.removeTask(ip, status.JobId, status.Id)
 
-				// move to completedJobs for reporting purposes
 				if len(m.jobs[status.JobId].tasks) == 0 {
-					j := m.jobs[status.JobId]
-					j.finishTime = time.Now()
-					m.completedJobs[status.JobId] = j
-
-					delete(m.jobs, status.JobId)
-
-					log.Printf("[updateTask] Job %v completed at %v", status.JobId, j.finishTime)
+					m.moveJobToCompletion(status.JobId)
 				}
 			}
 			break
@@ -298,16 +302,17 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 	}
 }
 
-func (m *Master) clearNewTaskOfJob(jobID int) {
+func removeTaskOfJob(tasks []*lib.Task, jobID int) []*lib.Task {
 	for {
-		for i := range m.newTasks {
-			if m.newTasks[i].JobID == jobID {
-				m.newTasks = append(m.newTasks[:i], m.newTasks[i+1:]...)
+		for i := range tasks {
+			if tasks[i].JobID == jobID {
+				tasks = append(tasks[:i], tasks[i+1:]...)
 				break
 			}
 		}
 		break
 	}
+	return tasks
 }
 
 func (m *Master) killTasksOnSlave(jobID int) {
