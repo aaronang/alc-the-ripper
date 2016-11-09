@@ -1,8 +1,9 @@
 package master
 
 import (
-	"github.com/aaronang/cong-the-ripper/lib"
 	"time"
+
+	"github.com/aaronang/cong-the-ripper/lib"
 )
 
 type StatusJSON struct {
@@ -20,15 +21,15 @@ type SlaveJSON struct {
 type TaskJSON struct {
 	ID       int    `json:"id"`
 	JobID    int    `json:"jobId"`
-	Start    []byte `json:"start"`
+	Start    string `json:"start"`
 	TaskLen  int    `json:"taskLen"`
-	Progress []byte `json:"progress"`
+	Progress string `json:"progress"`
 }
 
 type JobJSON struct {
 	ID         int           `json:"id"`
-	Salt       []byte        `json:"salt"`
-	Digest     []byte        `json:"digest"`
+	Salt       string        `json:"salt"`
+	Digest     string        `json:"digest"`
 	KeyLen     int           `json:"keyLen"`
 	Iter       int           `json:"iter"`
 	Alphabet   lib.Alphabet  `json:"alphabet"`
@@ -65,9 +66,9 @@ func createTasksJSON(ts []*lib.Task) []TaskJSON {
 		task := TaskJSON{
 			ID:       t.ID,
 			JobID:    t.JobID,
-			Start:    t.Start,
+			Start:    string(t.Start),
 			TaskLen:  t.TaskLen,
-			Progress: t.Progress,
+			Progress: string(t.Progress),
 		}
 		tasks = append(tasks, task)
 	}
@@ -79,8 +80,8 @@ func createJobsJSON(js map[int]*job) []JobJSON {
 	for _, j := range js {
 		job := JobJSON{
 			ID:         j.id,
-			Salt:       j.Salt,
-			Digest:     j.Digest,
+			Salt:       string(j.Salt),
+			Digest:     string(j.Digest),
 			KeyLen:     j.KeyLen,
 			Iter:       j.Iter,
 			Alphabet:   j.Alphabet,

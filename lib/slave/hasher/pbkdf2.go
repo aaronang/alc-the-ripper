@@ -3,9 +3,8 @@ package hasher
 import (
 	"crypto/sha256"
 
-	"golang.org/x/crypto/pbkdf2"
-
 	"github.com/aaronang/cong-the-ripper/lib"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 type Pbkdf2 struct {
