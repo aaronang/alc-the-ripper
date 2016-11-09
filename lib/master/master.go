@@ -285,7 +285,7 @@ func (m *Master) killTasksOnSlave(jobID int) {
 				// TODO why are we using master's port?
 				addr := net.JoinHostPort(ip, m.port)
 				jobIDStr := strconv.Itoa(jobID)
-				_, err := http.Get(addr + "/" + lib.JobsKillPath + "?jobid=" + jobIDStr)
+				_, err := http.Get(addr + lib.JobsKillPath + "?jobid=" + jobIDStr)
 				if err != nil {
 					log.Panicln("[killTasksOnSlave] failed send kill job request", err)
 				}
