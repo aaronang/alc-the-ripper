@@ -31,21 +31,24 @@ var url string
 func main() {
 	ip := pflag.String("ip", "localhost", "Master IP")
 	port := pflag.String("port", "8080", "Web server port")
+	jobs := pflag.Int("jobs", 2, "Number of jobs to create")
+	interval := pflag.Duration("interval", 1, "Interval between job creation in seconds")
+	output := pflag.String("output", "cong"+time.Now().String(), "Output filename")
 	pflag.Parse()
 
 	url = lib.Protocol + net.JoinHostPort(*ip, *port)
 
 	go func() {
-		for i := 0; i < 2; i++ {
+		for i := 0; i < *jobs; i++ {
 			if _, err := createJob(); err != nil {
 				log.Panicln("[createJob] Job wasn't created properly.", err)
 			}
 			log.Println("[createJob] Job was created successfully.")
-			time.Sleep(1 * time.Second)
+			time.Sleep(*interval * time.Second)
 		}
 	}()
 
-	f, err := os.Create("/tmp/dat2")
+	f, err := os.Create(*output)
 	if err != nil {
 		log.Panicln("[main] Creating file failed.", err)
 	}
