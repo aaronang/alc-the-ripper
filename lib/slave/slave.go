@@ -87,7 +87,7 @@ func (s *Slave) Run() {
 
 		case jobID := <-s.killChan:
 			for i := range s.tasks {
-				if s.tasks[i].JobID == jobID {
+				if s.tasks[i].JobID == jobID && s.tasks[i].Status == lib.Running {
 					s.tasks[i].killChan <- true
 					s.passwordNotFound(s.tasks[i].ID)
 					log.Println("[Main loop] killed job ", jobID, "task", s.tasks[i].ID)
