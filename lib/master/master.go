@@ -268,6 +268,7 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 					log.Printf("[updateTask] Job %v completed at %v", status.JobId, j.finishTime)
 				}
 			}
+			break
 		}
 	}
 }
