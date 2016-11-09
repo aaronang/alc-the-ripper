@@ -17,6 +17,7 @@ type job struct {
 	maxTasks     int
 	startTime    time.Time
 	finishTime   time.Time
+	password     string
 }
 
 func (j *job) reachedMaxTasks() bool {

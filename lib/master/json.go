@@ -36,6 +36,7 @@ type JobJSON struct {
 	Tasks      []TaskJSON    `json:"tasks"`
 	StartTime  time.Time     `json:"startTime"`
 	FinishTime time.Time     `json:"finishTime"`
+	Password   string        `json:"password"`
 }
 
 func createStatusJSON(m *Master) StatusJSON {
@@ -88,6 +89,7 @@ func createJobsJSON(js map[int]*job) []JobJSON {
 			Tasks:      createTasksJSON(j.tasks),
 			StartTime:  j.startTime,
 			FinishTime: j.finishTime,
+			Password:   j.password,
 		}
 		jobs = append(jobs, job)
 	}

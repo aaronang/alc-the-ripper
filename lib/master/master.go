@@ -250,6 +250,9 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 					// TODO terminate the other tasks in the same job if a password is found
 					log.Printf("[updateTask] Password found!!!!: %v (task: %v, job, %v)\n",
 						status.Password, status.Id, status.JobId)
+					tmpJob := m.jobs[status.JobId]
+					tmpJob.password = status.Password
+					m.jobs[status.JobId] = tmpJob
 				} else {
 					log.Printf("[updateTask] Password not found: %v (task: %v, job, %v)\n",
 						status.Password, status.Id, status.JobId)
