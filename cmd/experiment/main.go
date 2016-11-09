@@ -21,7 +21,7 @@ import (
 
 const (
 	KeyLen    = 4
-	Alphabet  = lib.AlphaNumMixed
+	Alphabet  = lib.AlphaLower
 	Algorithm = lib.PBKDF2
 	Iter      = 1000
 )
@@ -35,14 +35,15 @@ func main() {
 
 	url = lib.Protocol + net.JoinHostPort(*ip, *port)
 
-	// go func() {
-	// 	for i := 0; i < 30; i++ {
-	// 		if _, err := createJob(); err != nil {
-	// 			log.Panicln("[createJob] Job wasn't created properly.", err)
-	// 		}
-	// 		time.Sleep(1 * time.Minute)
-	// 	}
-	// }()
+	go func() {
+		for i := 0; i < 2; i++ {
+			if _, err := createJob(); err != nil {
+				log.Panicln("[createJob] Job wasn't created properly.", err)
+			}
+			log.Println("[createJob] Job was created successfully.")
+			time.Sleep(1 * time.Second)
+		}
+	}()
 
 	f, err := os.Create("/tmp/dat2")
 	if err != nil {
@@ -54,7 +55,7 @@ func main() {
 		sigchan := make(chan os.Signal, 10)
 		signal.Notify(sigchan, os.Interrupt)
 		<-sigchan
-		f.WriteString("\r]")
+		f.WriteString("\r]\n")
 		f.Close()
 		os.Exit(0)
 	}()
@@ -71,7 +72,7 @@ func main() {
 		}
 		f.Write(report)
 		f.WriteString("\n,")
-		log.Println(report)
+		log.Println(string(report))
 
 		time.Sleep(1 * time.Second)
 	}
@@ -79,7 +80,7 @@ func main() {
 
 func createJob() (*http.Response, error) {
 	body := generateJobJSON()
-	return http.Post(url+lib.TasksCreatePath, lib.BodyType, bytes.NewBuffer(body))
+	return http.Post(url+lib.JobsCreatePath, lib.BodyType, bytes.NewBuffer(body))
 }
 
 func generateJobJSON() []byte {
@@ -103,7 +104,7 @@ func generateJobJSON() []byte {
 }
 
 func generateSalt() []byte {
-	b := make([]byte, mrand.Int())
+	b := make([]byte, mrand.Intn(6)+1)
 	_, err := rand.Read(b)
 	if err != nil {
 		log.Panicln("error:", err)
