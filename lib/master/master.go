@@ -74,14 +74,15 @@ func Init(port, ip string, kp, ki, kd float64) Master {
 		scheduleTicker:    nil, // initialised in Run
 		controllerTicker:  nil, //initialised in Run
 		controller: controller{
-			dt:       time.Minute * 2,
+			dt:       time.Minute*2 + time.Second*30,
 			kp:       kp,
 			kd:       kd,
 			ki:       ki,
 			prevErr:  0,
 			integral: 0,
 		},
-		taskSize: 6400 * 1000 * 1000,
+		// the amount of raw hashes to compute to achieve ~5 minute duration
+		taskSize: 142000000,
 		quit:     make(chan bool),
 	}
 }
@@ -249,6 +250,9 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 					// TODO terminate the other tasks in the same job if a password is found
 					log.Printf("[updateTask] Password found!!!!: %v (task: %v, job, %v)\n",
 						status.Password, status.Id, status.JobId)
+					tmpJob := m.jobs[status.JobId]
+					tmpJob.password = status.Password
+					m.jobs[status.JobId] = tmpJob
 				} else {
 					log.Printf("[updateTask] Password not found: %v (task: %v, job, %v)\n",
 						status.Password, status.Id, status.JobId)
@@ -267,6 +271,7 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 					log.Printf("[updateTask] Job %v completed at %v", status.JobId, j.finishTime)
 				}
 			}
+			break
 		}
 	}
 }
