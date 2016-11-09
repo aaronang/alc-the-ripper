@@ -17,6 +17,14 @@ func (s *Slave) sendHeartbeat() {
 
 	if err != nil {
 		log.Println("[Heartbeat] Delivery failed")
+	} else {
+		// remove completed tasks
+		for i := range heartbeat.TaskStatus {
+			status := heartbeat.TaskStatus[i].Status
+			if status == lib.PasswordFound || status == lib.PasswordNotFound {
+				s.removeTaskWithID(heartbeat.TaskStatus[i].Id)
+			}
+		}
 	}
 }
 

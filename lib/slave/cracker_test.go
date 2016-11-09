@@ -43,6 +43,7 @@ func TestHit(t *testing.T) {
 	go Execute(task, slave.successChan, slave.failChan)
 	select {
 	case <-time.After(time.Second * 10):
+		t.Fail()
 	case <-slave.failChan:
 		t.Fail()
 	case <-slave.successChan:
@@ -55,6 +56,7 @@ func TestProgressHit(t *testing.T) {
 	go Execute(task, slave.successChan, slave.failChan)
 	select {
 	case <-time.After(time.Second * 10):
+		t.Fail()
 	case <-slave.failChan:
 		t.Fail()
 	case <-slave.successChan:
