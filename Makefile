@@ -1,4 +1,4 @@
-execs = master slave
+execs = master slave experiment
 
 .PHONY: clean test $(execs)
 

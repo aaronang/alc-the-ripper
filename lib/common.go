@@ -127,6 +127,10 @@ type Job struct {
 	Algorithm Algorithm
 }
 
+func (j *Job) ToJSON() ([]byte, error) {
+	return json.Marshal(j)
+}
+
 // Alphabets contains the set of all candidate characters for every alphabet
 var Alphabets [][]byte
 
