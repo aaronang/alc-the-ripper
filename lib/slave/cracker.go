@@ -9,8 +9,7 @@ import (
 )
 
 func execute(task *task, successChan chan CrackerSuccess, failChan chan CrackerFail) {
-	quitChan := make(chan int)
-	bd := brutedict.New(&task.Task, quitChan)
+	bd := brutedict.New(&task.Task)
 	hasher := new(hasher.Pbkdf2) // Can be swapped with other hashing algorithms
 	var candidate []byte
 
@@ -23,7 +22,7 @@ outer:
 			c <- lib.ReverseArray(candidate)
 		case <-task.killChan:
 			// job killed, another slave should have the result
-			quitChan <- 0
+			failChan <- CrackerFail{taskID: task.ID}
 			break outer
 		default:
 			if candidate = bd.Next(); candidate != nil {

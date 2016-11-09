@@ -255,7 +255,6 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 					tmpJob.password = status.Password
 					m.jobs[status.JobId] = tmpJob
 					m.killTasksOnSlave(status.JobId)
-					m.removeAllTaskFromJob(status.JobId)
 					m.clearNewTaskOfJob(status.JobId)
 				} else {
 					log.Printf("[updateTask] Password not found: %v (task: %v, job, %v)\n",
@@ -278,10 +277,6 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 			break
 		}
 	}
-}
-
-func (m *Master) removeAllTaskFromJob(jobID int) {
-	m.jobs[jobID].tasks = make([]*lib.Task, 0)
 }
 
 func (m *Master) clearNewTaskOfJob(jobID int) {

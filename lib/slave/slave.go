@@ -105,6 +105,7 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	log.Println("[taskHandler] sending new task into channel", t.ID)
 	slaveInstance.addTaskChan <- t
 }
 
@@ -115,6 +116,7 @@ func makeKillJobHandler(c chan int) func(w http.ResponseWriter, r *http.Request)
 		if err != nil {
 			log.Panicln("[killJobHandler] failed to parse", jobID, err)
 		}
+		log.Println("[jobsHandler] sending kill requet into channel", res)
 		c <- int(res)
 	}
 }
