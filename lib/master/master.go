@@ -181,6 +181,12 @@ func (m *Master) Run() {
 					m.killTasksOnSlave(jobID)
 					m.newTasks = removeTaskOfJob(m.newTasks, jobID)
 					m.scheduledTasks = removeTaskOfJob(m.scheduledTasks, jobID)
+
+					for k, inst := range m.instances {
+						inst.tasks = removeTaskOfJob(inst.tasks, jobID)
+						m.instances[k] = inst
+					}
+
 					m.jobs[jobID].tasks = make([]*lib.Task, 0)
 					m.moveJobToCompletion(jobID)
 				default:
