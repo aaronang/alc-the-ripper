@@ -20,6 +20,11 @@ outer:
 		case c := <-task.progressChan:
 			// Return reversed array to match reversed encoding in the master
 			c <- lib.ReverseArray(candidate)
+		case <-task.killChan:
+			// job killed, assume it's a fail, another slave should have the result
+			failChan <- CrackerFail{taskID: task.ID}
+			bd.Close()
+			break outer
 		default:
 			if candidate = bd.Next(); candidate != nil {
 				hash := hasher.Hash(candidate, &task.Task)

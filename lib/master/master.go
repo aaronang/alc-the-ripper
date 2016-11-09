@@ -253,6 +253,7 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 					tmpJob := m.jobs[status.JobId]
 					tmpJob.password = status.Password
 					m.jobs[status.JobId] = tmpJob
+					m.killTasksOnSlave(status.JobId)
 				} else {
 					log.Printf("[updateTask] Password not found: %v (task: %v, job, %v)\n",
 						status.Password, status.Id, status.JobId)
@@ -272,6 +273,21 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 				}
 			}
 			break
+		}
+	}
+}
+
+func (m *Master) killTasksOnSlave(jobID int) {
+	for ip, inst := range m.instances {
+		for i := range inst.tasks {
+			if inst.tasks[i].JobID == jobID {
+				// TODO why are we using master's port?
+				addr := net.JoinHostPort(ip, m.port)
+				_, err := http.Get(addr + "/" + lib.JobsKillPath + "?jobid=" + string(jobID))
+				if err != nil {
+					log.Panicln("[killTasksOnSlave] failed send kill job request", err)
+				}
+			}
 		}
 	}
 }
@@ -363,7 +379,7 @@ func (m *Master) slaveAvailable() string {
 
 func (m *Master) scheduleTask(tidx int, ip string) {
 	log.Println("[scheduleTask] Scheduling task to", ip)
-	// NOTE: if sendTask takes too long then it may block the main loop
+	// NOTE: if sendTask takes too long then it may block the main loop, and why are we using master's port?
 	if _, err := sendTask(m.newTasks[tidx], net.JoinHostPort(ip, m.port)); err != nil {
 		log.Println("[scheduleTask] Sending task to slave did not execute correctly.", err)
 	} else {

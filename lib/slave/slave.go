@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/aaronang/cong-the-ripper/lib"
@@ -16,6 +17,7 @@ type task struct {
 	Status       lib.Status
 	Password     string
 	progressChan chan chan []byte
+	killChan     chan bool
 }
 
 type Slave struct {
@@ -25,6 +27,7 @@ type Slave struct {
 	successChan     chan CrackerSuccess
 	failChan        chan CrackerFail
 	addTaskChan     chan lib.Task
+	killJobChan     chan int
 	heartbeatTicker *time.Ticker
 	tasks           []*task
 }
@@ -37,6 +40,7 @@ func Init(port, masterIp, masterPort string) *Slave {
 		successChan:     make(chan CrackerSuccess),
 		failChan:        make(chan CrackerFail),
 		addTaskChan:     make(chan lib.Task),
+		killJobChan:     make(chan int),
 		heartbeatTicker: nil,
 	}
 	return &slaveInstance
@@ -47,6 +51,7 @@ func (s *Slave) Run() {
 
 	go func() {
 		http.HandleFunc(lib.TasksCreatePath, taskHandler)
+		http.HandleFunc(lib.JobsKillPath, makeKillJobHandler(s.killJobChan))
 		err := http.ListenAndServe(":"+s.port, nil)
 		if err != nil {
 			log.Panicln("[Main Loop] listener failed", err)
@@ -66,6 +71,7 @@ func (s *Slave) Run() {
 				Task:         t,
 				Status:       lib.Running,
 				progressChan: make(chan chan []byte),
+				killChan:     make(chan bool),
 			}
 			if s.addTask(task) {
 				go Execute(task, s.successChan, s.failChan)
@@ -78,7 +84,16 @@ func (s *Slave) Run() {
 		case msg := <-s.failChan:
 			log.Println("[Main Loop]", "FailChan message:", msg)
 			s.passwordNotFound(msg.taskID)
+
+		case jobID := <-s.killJobChan:
+			for i := range s.tasks {
+				if s.tasks[i].JobID == jobID {
+					s.tasks[i].killChan <- true
+					log.Println("[Main loop] killed job ", jobID, "task", s.tasks[i].ID)
+				}
+			}
 		}
+
 	}
 }
 
@@ -90,6 +105,17 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slaveInstance.addTaskChan <- t
+}
+
+func makeKillJobHandler(c chan int) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		jobID := r.FormValue("jobid")
+		res, err := strconv.ParseInt(jobID, 10, 64)
+		if err != nil {
+			log.Panicln("[killJobHandler] failed to parse", jobID, err)
+		}
+		c <- int(res)
+	}
 }
 
 func (s *Slave) addTask(task *task) bool {

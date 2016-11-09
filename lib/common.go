@@ -14,6 +14,7 @@ const (
 	BodyType = "application/json"
 
 	TasksCreatePath = "/tasks/create"
+	JobsKillPath    = "/jobs/kill"
 	JobsCreatePath  = "/jobs/create"
 	HeartbeatPath   = "/heartbeat"
 	StatusPath      = "/cong"
