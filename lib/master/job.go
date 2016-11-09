@@ -3,6 +3,7 @@ package master
 import (
 	"log"
 	"math/big"
+	"math/rand"
 	"time"
 
 	"github.com/aaronang/cong-the-ripper/lib"
@@ -53,7 +54,7 @@ func (j *job) splitJob(taskSize int) {
 		tasks = append(tasks, &lib.Task{
 			Job:     j.Job,
 			JobID:   j.id,
-			ID:      i,
+			ID:      rand.Int(),
 			Start:   cands[i],
 			TaskLen: lens[i]})
 	}

@@ -130,3 +130,14 @@ func (s *Slave) taskWithID(id int) *task {
 	}
 	return nil
 }
+
+func (s *Slave) removeTaskWithID(id int) {
+	for i := range s.tasks {
+		if s.tasks[i].ID == id {
+			s.tasks = append(s.tasks[:i], s.tasks[i+1:]...)
+			log.Println("[removeTaskWithID] removed task with id", id)
+			return
+		}
+	}
+	log.Panicln("[removeTaskWithID] failed to remove task with id", id)
+}
