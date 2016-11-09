@@ -34,6 +34,8 @@ type Master struct {
 	controller        controller
 	taskSize          int
 	quit              chan bool
+	killJobTicker     *time.Ticker
+	killJobChan       chan int
 }
 
 type slave struct {
@@ -83,8 +85,10 @@ func Init(port, ip string, kp, ki, kd float64) Master {
 			integral: 0,
 		},
 		// the amount of raw hashes to compute to achieve ~5 minute duration
-		taskSize: 142000000,
-		quit:     make(chan bool),
+		taskSize:      142000000,
+		quit:          make(chan bool),
+		killJobTicker: nil,
+		killJobChan:   make(chan int, 1000),
 	}
 }
 
@@ -95,6 +99,7 @@ func (m *Master) Run() {
 	m.controllerTicker = time.NewTicker(m.controller.dt)
 	// TODO test how this performs when a lot of tasks get submitted.
 	m.scheduleTicker = time.NewTicker(time.Duration(100/(len(m.newTasks)+1)) * time.Millisecond)
+	m.killJobTicker = time.NewTicker(2 * lib.HeartbeatInterval)
 
 	// setup and run http
 	go func() {
@@ -167,6 +172,18 @@ func (m *Master) Run() {
 			// status handler gives us a channel,
 			// we write the status into the channel and the handler serves the result
 			s <- createStatusJSON(m)
+		case <-m.killJobTicker.C:
+		outer:
+			for {
+				// drain all the jobs in the buffered channel
+				select {
+				case jobID := <-m.killJobChan:
+					m.killTasksOnSlave(jobID)
+					m.clearNewTaskOfJob(jobID)
+				default:
+					break outer
+				}
+			}
 		case <-m.quit:
 			// release all slaves
 			log.Println("[Run] Master stopping...")
@@ -254,8 +271,10 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 					tmpJob := m.jobs[status.JobId]
 					tmpJob.password = status.Password
 					m.jobs[status.JobId] = tmpJob
-					m.killTasksOnSlave(status.JobId)
-					m.clearNewTaskOfJob(status.JobId)
+
+					// NOTE: we cannot immediately kill the job because the master's state may not be up to date
+					// so we wait until it is up to date by the heartbeat and then kill it, hence use this channel
+					m.killJobChan <- status.JobId
 				} else {
 					log.Printf("[updateTask] Password not found: %v (task: %v, job, %v)\n",
 						status.Password, status.Id, status.JobId)
