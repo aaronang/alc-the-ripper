@@ -31,6 +31,8 @@ func (m *Master) runController() {
 
 func (m *Master) adjustInstanceCount(n int) {
 	if n > 0 {
+		// our instance limit is 20, and one of it is a master
+		n = lib.Min(19-len(m.instances), n)
 		go func() {
 			_, err := createSlaves(m.svc, n, "8080", m.ip, m.port)
 			if err != nil {
