@@ -306,3 +306,13 @@ func Min(a, b int) int {
 	}
 	return b
 }
+
+func EmptyChan(c chan int) {
+	for {
+		select {
+		case <-c:
+		default:
+			return
+		}
+	}
+}

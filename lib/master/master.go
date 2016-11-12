@@ -380,24 +380,27 @@ func heartbeatChecker(ip, port string, missedChan chan<- string) (chan<- bool, c
 			timeout := time.After(2 * lib.HeartbeatInterval)
 			select {
 			case <-timeout:
+				lib.EmptyChan(killChan)
 				log.Printf("[heartbeatChecker] Missed heartbeat for %v", ip)
 				missedChan <- ip
 				return
 			case <-beatChan:
-			inner:
-				// heartbeate ok, check if there are jobs that we need to kill
-				for {
-					select {
-					case jobID := <-killChan:
-						sendKillRequest(net.JoinHostPort(ip, port), jobID)
-					default:
-						break inner
-					}
-				}
+				processKillRequests(killChan, ip, port)
 			}
 		}
 	}()
 	return beatChan, killChan
+}
+
+func processKillRequests(c chan int, ip, port string) {
+	for {
+		select {
+		case jobID := <-c:
+			sendKillRequest(net.JoinHostPort(ip, port), jobID)
+		default:
+			return
+		}
+	}
 }
 
 func (m *Master) getTaskToSchedule() int {
