@@ -33,7 +33,7 @@ EOF
 	params := &ec2.RunInstancesInput{
 		ImageId:      aws.String(lib.SlaveImage),
 		InstanceType: aws.String(lib.SlaveType),
-		MinCount:     aws.Int64(int64(count)),
+		MinCount:     aws.Int64(1), // 1 so that this function does not fail when we reach instance count limit
 		MaxCount:     aws.Int64(int64(count)),
 		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
 			Arn: aws.String(lib.SlaveARN),
