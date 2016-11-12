@@ -69,7 +69,7 @@ func Init(port, ip string, kp, ki, kd float64) Master {
 		completedJobs:     make(map[int]*job),
 		jobsChan:          make(chan lib.Job),
 		heartbeatChan:     make(chan heartbeat),
-		heartbeatMissChan: make(chan string),
+		heartbeatMissChan: make(chan string, 100),
 		statusChan:        make(chan chan StatusJSON),
 		newTasks:          make([]*lib.Task, 0),
 		scheduledTasks:    make([]*lib.Task, 0),
