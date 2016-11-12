@@ -20,7 +20,7 @@ const (
 	KeyLen    = 4
 	Alphabet  = lib.AlphaLower
 	Algorithm = lib.PBKDF2
-	Iter      = 1000
+	Iter      = 2000
 )
 
 func main() {

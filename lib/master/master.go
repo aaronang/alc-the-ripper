@@ -34,14 +34,13 @@ type Master struct {
 	controller        controller
 	taskSize          int
 	quit              chan bool
-	killJobTicker     *time.Ticker
-	killJobChan       chan int
 }
 
 type slave struct {
 	tasks         []*lib.Task
 	maxSlots      int
 	heartbeatChan chan<- bool
+	killChan      chan<- int
 }
 
 type controller struct {
@@ -55,7 +54,7 @@ type controller struct {
 
 type heartbeat struct {
 	lib.Heartbeat
-	addr string
+	ip string
 }
 
 // Init creates the master object
@@ -84,11 +83,10 @@ func Init(port, ip string, kp, ki, kd float64) Master {
 			prevErr:  0,
 			integral: 0,
 		},
-		// the amount of raw hashes to compute to achieve ~5 minute duration
-		taskSize:      142000000,
-		quit:          make(chan bool),
-		killJobTicker: nil,
-		killJobChan:   make(chan int, 1000),
+		// the amount of raw hashes to compute to achieve ~10 minute duration
+		// but tasks get killed when the result is founds, the average duration should be halved
+		taskSize: 284000000,
+		quit:     make(chan bool),
 	}
 }
 
@@ -99,7 +97,6 @@ func (m *Master) Run() {
 	m.controllerTicker = time.NewTicker(m.controller.dt)
 	// TODO test how this performs when a lot of tasks get submitted.
 	m.scheduleTicker = time.NewTicker(time.Duration(100/(len(m.newTasks)+1)) * time.Millisecond)
-	m.killJobTicker = time.NewTicker(2 * lib.HeartbeatInterval)
 
 	// setup and run http
 	go func() {
@@ -158,32 +155,21 @@ func (m *Master) Run() {
 			// update task statuses
 			// check whether a job has completed all its tasks
 			m.updateOnHeartbeat(beat)
-			m.instances[beat.addr].heartbeatChan <- true
-		case addr := <-m.heartbeatMissChan:
+			m.instances[beat.ip].heartbeatChan <- true
+
+		case ip := <-m.heartbeatMissChan:
 			// moved the scheduled tasks back to new tasks to be re-scheduled
-			for i := range m.instances[addr].tasks {
-				task := m.instances[addr].tasks[i]
+			for i := range m.instances[ip].tasks {
+				task := m.instances[ip].tasks[i]
 				m.scheduledTasks = removeTaskFrom(m.scheduledTasks, task.JobID, task.ID)
 				m.newTasks = append([]*lib.Task{task}, m.newTasks...)
 				m.jobs[task.JobID].decreaseRunningTasks()
 			}
-			delete(m.instances, addr)
+			delete(m.instances, ip)
 		case s := <-m.statusChan:
 			// status handler gives us a channel,
 			// we write the status into the channel and the handler serves the result
 			s <- createStatusJSON(m)
-		case <-m.killJobTicker.C:
-		outer:
-			for {
-				// drain all the jobs in the buffered channel
-				select {
-				case jobID := <-m.killJobChan:
-					m.killTasksOnSlave(jobID)
-					m.clearNewTaskOfJob(jobID)
-				default:
-					break outer
-				}
-			}
 		case <-m.quit:
 			// release all slaves
 			log.Println("[Run] Master stopping...")
@@ -225,7 +211,7 @@ func makeHeartbeatHandler(c chan heartbeat) http.HandlerFunc {
 		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 		c <- heartbeat{
 			Heartbeat: beat,
-			addr:      ip,
+			ip:        ip,
 		}
 	}
 }
@@ -272,9 +258,10 @@ func (m *Master) updateTask(status lib.TaskStatus, ip string) {
 					tmpJob.password = status.Password
 					m.jobs[status.JobId] = tmpJob
 
-					// NOTE: we cannot immediately kill the job because the master's state may not be up to date
-					// so we wait until it is up to date by the heartbeat and then kill it, hence use this channel
-					m.killJobChan <- status.JobId
+					m.clearNewTaskOfJob(status.JobId)
+					for _, inst := range m.instances {
+						inst.killChan <- status.JobId
+					}
 				} else {
 					log.Printf("[updateTask] Password not found: %v (task: %v, job, %v)\n",
 						status.Password, status.Id, status.JobId)
@@ -329,6 +316,14 @@ func (m *Master) killTasksOnSlave(jobID int) {
 	}
 }
 
+func sendKillRequest(addr string, jobID int) {
+	jobIDStr := strconv.Itoa(jobID)
+	_, err := http.Get(lib.Protocol + addr + lib.JobsKillPath + "?jobid=" + jobIDStr)
+	if err != nil {
+		log.Panicln("[sendKillRequest] failed send kill job request", err)
+	}
+}
+
 // removeTaskFrom returns a slice of task pointers as the result of removal
 func removeTaskFrom(tasks []*lib.Task, jobID, taskID int) []*lib.Task {
 	for i := range tasks {
@@ -360,37 +355,49 @@ func (m *Master) removeTask(ip string, jobID, taskID int) {
 }
 
 func (m *Master) updateOnHeartbeat(beat heartbeat) {
-	if _, ok := m.instances[beat.addr]; ok { // for instances that already exist
-		log.Println("[updateOnHeartbeat] updating existing instance", beat.addr)
+	if _, ok := m.instances[beat.ip]; ok { // for instances that already exist
+		log.Println("[updateOnHeartbeat] updating existing instance", beat.ip)
 		for _, s := range beat.TaskStatus {
-			m.updateTask(s, beat.addr)
+			m.updateTask(s, beat.ip)
 		}
 	} else { // for new instances
-		m.instances[beat.addr] = slave{
+		hbc, kc := heartbeatChecker(beat.ip, m.port, m.heartbeatMissChan)
+		m.instances[beat.ip] = slave{
 			tasks:         make([]*lib.Task, 0),
 			maxSlots:      lib.MaxSlotsPerInstance,
-			heartbeatChan: heartbeatChecker(beat.addr, m.heartbeatMissChan),
+			heartbeatChan: hbc,
+			killChan:      kc,
 		}
-		log.Printf("[updateOnHeartbeat] New instance %v created.", beat.addr)
+		log.Printf("[updateOnHeartbeat] New instance %v created.", beat.ip)
 	}
 }
 
-func heartbeatChecker(addr string, missedChan chan<- string) chan<- bool {
+func heartbeatChecker(ip, port string, missedChan chan<- string) (chan<- bool, chan<- int) {
 	beatChan := make(chan bool)
+	killChan := make(chan int, 100)
 	go func() {
 		for {
 			timeout := time.After(2 * lib.HeartbeatInterval)
 			select {
 			case <-timeout:
-				log.Printf("[heartbeatChecker] Missed heartbeat for %v", addr)
-				missedChan <- addr
+				log.Printf("[heartbeatChecker] Missed heartbeat for %v", ip)
+				missedChan <- ip
 				return
 			case <-beatChan:
-				// ok, do nothing
+			inner:
+				// heartbeate ok, check if there are jobs that we need to kill
+				for {
+					select {
+					case jobID := <-killChan:
+						sendKillRequest(net.JoinHostPort(ip, port), jobID)
+					default:
+						break inner
+					}
+				}
 			}
 		}
 	}()
-	return beatChan
+	return beatChan, killChan
 }
 
 func (m *Master) getTaskToSchedule() int {
