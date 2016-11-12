@@ -1,4 +1,4 @@
-execs = master slave experiment
+execs = master slave job_creator metrics_collector
 
 .PHONY: clean test $(execs)
 
