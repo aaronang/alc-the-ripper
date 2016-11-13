@@ -69,7 +69,7 @@ func Init(port, ip string, kp, ki, kd float64) Master {
 		completedJobs:     make(map[int]*job),
 		jobsChan:          make(chan lib.Job),
 		heartbeatChan:     make(chan heartbeat),
-		heartbeatMissChan: make(chan string, 100),
+		heartbeatMissChan: make(chan string),
 		statusChan:        make(chan chan StatusJSON),
 		newTasks:          make([]*lib.Task, 0),
 		scheduledTasks:    make([]*lib.Task, 0),
@@ -156,7 +156,7 @@ func (m *Master) Run() {
 			// check whether a job has completed all its tasks
 			m.updateOnHeartbeat(beat)
 			m.instances[beat.ip].heartbeatChan <- true
-
+			log.Println("[Run] Updated heartbeat for slave", beat.ip)
 		case ip := <-m.heartbeatMissChan:
 			// moved the scheduled tasks back to new tasks to be re-scheduled
 			for i := range m.instances[ip].tasks {
@@ -166,6 +166,7 @@ func (m *Master) Run() {
 				m.jobs[task.JobID].decreaseRunningTasks()
 			}
 			delete(m.instances, ip)
+			log.Println("[Run] Deleted instance", ip)
 		case s := <-m.statusChan:
 			// status handler gives us a channel,
 			// we write the status into the channel and the handler serves the result
