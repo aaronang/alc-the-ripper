@@ -20,7 +20,7 @@ func New(task *lib.Task) (bd *BruteDict) {
 		currentComb: lib.BytesToBigInt(task.Alphabet, task.Start),
 	}
 
-	if task.Progress != nil || len(task.Progress) > 0 {
+	if len(task.Progress) > 0 {
 		progressComb := lib.BytesToBigInt(task.Alphabet, task.Progress)
 		progressLen := big.NewInt(0)
 		progressLen.Sub(progressComb, bd.currentComb)
