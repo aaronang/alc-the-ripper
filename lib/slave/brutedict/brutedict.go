@@ -1,6 +1,7 @@
 package brutedict
 
 import (
+	"log"
 	"math/big"
 
 	"github.com/aaronang/cong-the-ripper/lib"
@@ -19,12 +20,15 @@ func New(task *lib.Task) (bd *BruteDict) {
 		currentComb: lib.BytesToBigInt(task.Alphabet, task.Start),
 	}
 
-	if task.Progress != nil {
+	if task.Progress != nil || len(task.Progress) > 0 {
 		progressComb := lib.BytesToBigInt(task.Alphabet, task.Progress)
 		progressLen := big.NewInt(0)
 		progressLen.Sub(progressComb, bd.currentComb)
 
 		bd.remaining = bd.remaining - int(progressLen.Int64())
+		if bd.remaining < 0 {
+			log.Panic("[brutedict] bd.remaining is negative!", bd.remaining)
+		}
 		bd.currentComb = progressComb
 	}
 
