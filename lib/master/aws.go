@@ -90,7 +90,10 @@ func sendTask(t *lib.Task, addr string) (*http.Response, error) {
 	if err != nil {
 		log.Panicln(err)
 	}
-	return http.Post(url, lib.BodyType, bytes.NewBuffer(body))
+	client := http.Client{
+		Timeout: time.Duration(500 * time.Millisecond),
+	}
+	return client.Post(url, lib.BodyType, bytes.NewBuffer(body))
 }
 
 func newEC2() *ec2.EC2 {
