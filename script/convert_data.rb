@@ -23,7 +23,7 @@ data = JSON.parse(file)
 CSV.open(options[:output], "w") do |csv|
   csv << %w(time required_slots available_slots)
   time = 0
-  data.each do |o, _|
+  data.each do |o|
     csv << [time, o["requiredSlots"], o["availableSlots"]]
     time += 10
   end
