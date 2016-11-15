@@ -4,12 +4,13 @@ require 'json'
 require 'csv'
 require 'optparse'
 
-options = {input: nil, output: "data.csv"}
+options = {input: nil, output: nil}
 OptionParser.new do |opts|
   opts.banner = "Usage: example.rb [options]"
 
   opts.on("-i", "--input input", "Input file") do |input|
     options[:input] = input
+    options[:output] = input.sub(".json", "_bar.csv")
   end
 
   opts.on("-o", "--output output", "Output file") do |output|
