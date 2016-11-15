@@ -96,7 +96,7 @@ func (m *Master) Run() {
 	m.svc = newEC2()
 	m.controllerTicker = time.NewTicker(m.controller.dt)
 	// TODO test how this performs when a lot of tasks get submitted.
-	m.scheduleTicker = time.NewTicker(time.Duration(100/(len(m.newTasks)+1)) * time.Millisecond)
+	m.scheduleTicker = time.NewTicker(time.Duration(500/(len(m.newTasks)+1)) * time.Millisecond)
 
 	// setup and run http
 	go func() {
@@ -305,7 +305,10 @@ func (m *Master) killTasksOnSlave(jobID int) {
 				// TODO why are we using master's port?
 				addr := net.JoinHostPort(ip, m.port)
 				jobIDStr := strconv.Itoa(jobID)
-				_, err := http.Get(lib.Protocol + addr + lib.JobsKillPath + "?jobid=" + jobIDStr)
+				client := http.Client{
+					Timeout: time.Duration(500 * time.Millisecond),
+				}
+				_, err := client.Get(lib.Protocol + addr + lib.JobsKillPath + "?jobid=" + jobIDStr)
 				if err != nil {
 					log.Panicln("[killTasksOnSlave] failed send kill job request", err)
 				}
@@ -319,7 +322,10 @@ func (m *Master) killTasksOnSlave(jobID int) {
 
 func sendKillRequest(addr string, jobID int) {
 	jobIDStr := strconv.Itoa(jobID)
-	_, err := http.Get(lib.Protocol + addr + lib.JobsKillPath + "?jobid=" + jobIDStr)
+	client := http.Client{
+		Timeout: time.Duration(500 * time.Millisecond),
+	}
+	_, err := client.Get(lib.Protocol + addr + lib.JobsKillPath + "?jobid=" + jobIDStr)
 	if err != nil {
 		log.Panicln("[sendKillRequest] failed send kill job request", err)
 	}
