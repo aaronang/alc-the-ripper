@@ -22,7 +22,7 @@ file = File.read(options[:input])
 data = JSON.parse(file)
 
 CSV.open(options[:output], "w") do |csv|
-  csv << %w(slave average_tasks)
+  csv << ["Instance" "Average tasks running"]
   data.reject{ |o| o["slaves"].nil? }.flat_map do |o|
     o["slaves"].map do |s|
       num_of_tasks = s["tasks"].nil? ? 0 : s["tasks"].size
