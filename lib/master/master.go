@@ -59,6 +59,7 @@ type heartbeat struct {
 
 // Init creates the master object
 func Init(port, ip string, kp, ki, kd float64) Master {
+	rand.Seed(time.Now().UTC().UnixNano())
 	// set some defaults
 	return Master{
 		ip:                ip,

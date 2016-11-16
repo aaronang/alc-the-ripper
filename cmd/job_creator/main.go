@@ -32,6 +32,8 @@ func main() {
 
 	addr := lib.Protocol + net.JoinHostPort(ip.String(), *port) + lib.JobsCreatePath
 
+	mrand.Seed(time.Now().UTC().UnixNano())
+
 	for i := 0; i < *jobs; i++ {
 		if resp, err := createJob(addr); err != nil || resp.StatusCode != http.StatusOK {
 			log.Panicln("[createJob] Job wasn't created properly.", err, resp.Status)
