@@ -24,7 +24,7 @@ file = File.read(options[:input])
 data = JSON.parse(file)
 
 CSV.open(options[:output], "w") do |csv|
-  csv << %w(Makespan)
+  csv << ["Makespan"]
   makespans = data.last["completedJobs"].map do |o|
     start = Time.parse(o["startTime"])
     finish = Time.parse(o["finishTime"])
