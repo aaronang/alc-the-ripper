@@ -27,7 +27,6 @@ outer:
 		default:
 			if candidate = bd.Next(); candidate != nil {
 				hash := hasher.Hash(candidate, &task.Task)
-				// fmt.Println("Key base64: " + string(candidate) + " -> " + b64.StdEncoding.EncodeToString(hash))
 				if lib.TestEqBytes(hash, task.Digest) {
 					successChan <- CrackerSuccess{taskID: task.ID, password: string(candidate)}
 					break outer
