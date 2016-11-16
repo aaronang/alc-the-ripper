@@ -77,3 +77,15 @@ func TestMiss(t *testing.T) {
 	case <-slave.failChan:
 	}
 }
+
+func TestHashRate(t *testing.T) {
+	slave, task := setupSlaveTask()
+	task.Digest = []byte("wrongdigest")
+	task.TaskLen = 5000 // TaskLen * Iter (2000) = 10 million
+	go execute(task, slave.successChan, slave.failChan)
+	select {
+	case <-slave.successChan:
+		t.Fail()
+	case <-slave.failChan:
+	}
+}
