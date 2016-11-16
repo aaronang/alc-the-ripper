@@ -69,7 +69,7 @@ func (m *Master) adjustInstanceCount(n int) {
 
 func (m *Master) maxSlots() int {
 	// TODO do we set the manually or it's a property of AWS?
-	return 20 * lib.MaxSlotsPerInstance
+	return 19 * lib.MaxSlotsPerInstance
 }
 
 func (m *Master) countRequiredSlots() int {
