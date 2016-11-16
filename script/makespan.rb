@@ -29,7 +29,7 @@ CSV.open(options[:output], "w") do |csv|
     start = Time.parse(o["startTime"])
     finish = Time.parse(o["finishTime"])
     makespan = finish - start
-    makespan / 60.0 - 2.5
+    makespan / 60.0
   end.sort.reverse
   makespans.each { |m| csv << [m] }
 end

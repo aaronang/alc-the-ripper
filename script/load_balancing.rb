@@ -22,7 +22,7 @@ file = File.read(options[:input])
 data = JSON.parse(file)
 
 CSV.open(options[:output], "w") do |csv|
-  csv << ["Instance", "Average tasks running"]
+  csv << ["Average tasks running"]
   data.reject{ |o| o["slaves"].nil? }.flat_map do |o|
     o["slaves"].map do |s|
       num_of_tasks = s["tasks"].nil? ? 0 : s["tasks"].size
@@ -34,8 +34,7 @@ CSV.open(options[:output], "w") do |csv|
       samples = v1[:samples] + v2[:samples]
       { tasks: tasks, samples: samples }
     end
-  end.each do |k, v|
+  end.map do |_, v|
     average = v[:tasks] / v[:samples].to_f
-    csv << [k, average]
-  end
+  end.sort.reverse.each { |avg| csv << [avg] }
 end
