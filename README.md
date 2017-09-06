@@ -1,5 +1,5 @@
 # Cong the Ripper
-Cong the Ripper (CTR) is a *state-of-the-art* cloud-based password cracker.
+Cong the Ripper (CTR) is a cloud-based password cracker.
 The user submits a salt, a PBKDF2 digest, and the length of the password, then CTR will use brute force to find the password.
 
 # Design Requirements
